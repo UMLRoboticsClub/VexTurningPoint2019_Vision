@@ -1,3 +1,4 @@
+//#define USE_WEBCAM
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -21,8 +22,6 @@ const int edgeThresh = 100;
 const int maxEdgeThresh = 200;
 const double polyEpsilon = 14;
 
-//enum class TargetColor { RED, BLUE, GREEN };
-
 //HSV color ranges for flags
 
 //blue
@@ -39,30 +38,43 @@ Scalar gMax(60 + gSensitivity, 255, 255);
 //Scalar rMin(, 100, 100);
 //Scalar rMax(, 100, 100);
 
-//inRange(frmHsv, Scalar(MIN_H_BLUE / 2, 100, 80), Scalar(MAX_H_BLUE / 2, 255, 255), rangeRes);
+namespace B {
+    vector<vector<Point>> contours;
+    vector<Vec4i> hierarchy;
+    vector<vector<Point>> polygons;
+    vector<Rect> boundRect;
+    vector<Point> centers;
 
-//#define USE_WEBCAM
-
-void processFrame(Mat &frame);
-void prepFrame(Mat &frame);
-
-const auto &getTime = []{
-    return duration<double>(high_resolution_clock::now().time_since_epoch()).count();
+    Mat orig;
+    Mat thresh;
+    Mat canny_output;
 };
 
+void prepFrame(Mat &frame);
+void prepFrame2(Mat &frame, const Scalar &minColorRange, const Scalar &maxColorRange);
+void processFrame(const Mat &frame);
+
+void processB(const Mat &_frame, const Mat &_orig);
+void drawB();
+void processG(const Mat &_frame, const Mat &_orig);
+void drawG();
+
 int main(){
+    const auto &getTime = []{
+        return duration<double>(high_resolution_clock::now().time_since_epoch()).count();
+    };
+
     VideoCapture cap;
     if (!cap.open(cam_index)){
         cout << "cannot open video device\n";
-        return EXIT_FAILURE;
+        exit(1);
     }
 
-    //cout << "\nHit 'q' to exit...\n";
-
-    //Mat frame = imread("testimage.png");
     Mat frame;
+
 #ifndef USE_WEBCAM
     frame = imread(test_image);
+    cout << "\nHit 'q' to exit...\n";
 #else
     while(waitKey(1) != 'q'){
         cap >> frame;
@@ -78,13 +90,15 @@ int main(){
 #endif
 }
 
-void prepFrame(Mat &frame, const Scalar &minColorRange, const Scalar &maxColorRange){
+void prepFrame(Mat &frame){
     //noise smoothing
     GaussianBlur(frame, frame, Size(5, 5), 3.0, 3.0);
     //HSV conversion
     cvtColor(frame, frame, CV_BGR2HSV);
+}
 
-    //Color Thresholding
+void prepFrame2(Mat &frame, const Scalar &minColorRange, const Scalar &maxColorRange){
+    //color thresholding
     Mat rangeRes = Mat::zeros(frame.size(), CV_8UC1);
     inRange(frame, minColorRange, maxColorRange, frame);
 
@@ -93,26 +107,38 @@ void prepFrame(Mat &frame, const Scalar &minColorRange, const Scalar &maxColorRa
     dilate(frame, frame, Mat(), Point(-1, -1), 2);
 }
 
-void processFrame(Mat &frame){
-    Mat orig = frame.clone();
 
-    prepFrame(frame, bMin, bMax);
+void processFrame(const Mat &frame){
+    Mat processed = frame.clone();
+    prepFrame(processed);
+    processB(processed, frame);
+    drawB();
+}
 
-    imshow("Threshold", frame);
+void processB(const Mat &_frame, const Mat &_orig){
+    using namespace B;
 
-    Mat canny_output;
-    vector<vector<Point>> contours;
-    vector<Vec4i> hierarchy;
+    contours.clear();
+    hierarchy.clear();
+    polygons.clear();
+    boundRect.clear();
+    centers.clear();
+    //
+
+    orig = _orig.clone();
+    thresh = _frame.clone();
+
+    prepFrame2(thresh, bMin, bMax);
 
     //canny edge detection
-    Canny(frame, canny_output, edgeThresh, maxEdgeThresh, 3);
+    Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
 
     //find contours
     findContours(canny_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
     //CV_RETR_EXTERNAL = get just external contours (no nesting)
 
     //get polygons from contours
-    vector<vector<Point>> polygons(contours.size());
+    polygons.resize(contours.size());
     for(unsigned i = 0; i < contours.size(); ++i){
         approxPolyDP(contours[i], polygons[i], polyEpsilon, true);
     }
@@ -121,13 +147,8 @@ void processFrame(Mat &frame){
     polygons.erase(std::remove_if(polygons.begin(), polygons.end(),
                 [](auto &poly){ return poly.size() != 4; }), polygons.end());
 
-    vector<Rect> boundRect;(polygons.size());
     boundRect.reserve(polygons.size());
-
-    vector<Point> centers;
     centers.reserve(polygons.size());
-
-    Mat drawing = Mat::zeros(canny_output.size(), CV_8UC3);
 
     for(unsigned i = 0; i < polygons.size(); ++i){
         //get bounding rectangle for each polygon
@@ -135,6 +156,15 @@ void processFrame(Mat &frame){
         //find center of bounding rectangle
         centers[i] = Point(boundRect[i].x + boundRect[i].width/2, boundRect[i].y + boundRect[i].height/2);
 
+    }
+}
+
+void drawB(){
+    using namespace B;
+
+    Mat drawing = Mat::zeros(canny_output.size(), CV_8UC3);
+
+    for(unsigned i = 0; i < polygons.size(); ++i){
         //draw stuff
         drawContours(drawing, contours, i, Scalar(32,32,32), 2, 8, hierarchy, 0, Point());
         drawContours(drawing, polygons, i, Scalar(32,255,255), 1, 8, hierarchy, 0, Point());
@@ -145,6 +175,7 @@ void processFrame(Mat &frame){
     }
 
     //imshow("canny", canny_output);
-    imshow("contours", drawing);
+    imshow("threshold", thresh);
+    imshow("drawing", drawing);
     imshow("orig", orig);
 }
