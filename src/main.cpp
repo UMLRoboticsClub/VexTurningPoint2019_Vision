@@ -21,23 +21,23 @@ const int edgeThresh = 100;
 const int maxEdgeThresh = 200;
 const double polyEpsilon = 14;
 
-enum class TargetColor { RED, BLUE, GREEN };
+//enum class TargetColor { RED, BLUE, GREEN };
 
-//Color to be tracked
-//#define MIN_H_BLUE 200
-//#define MAX_H_BLUE 300
-//HSV
-//red
-//Scalar minColorRange(345, 100, 100);
-//Scalar maxColorRange(30, 100, 100);
+//HSV color ranges for flags
 
 //blue
-Scalar minColorRange(100, 70, 70);
-Scalar maxColorRange(150, 255, 255);
+const int bSensitivity = 20;
+Scalar bMin(120 - bSensitivity, 70, 100);
+Scalar bMax(120 + bSensitivity, 255, 255);
 
 //green
-//Scalar minColorRange(50, 140, 170);
-//Scalar maxColorRange(70, 255, 255);
+const int gSensitivity = 20;
+Scalar gMin(60 - gSensitivity, 20, 100);
+Scalar gMax(60 + gSensitivity, 255, 255);
+
+//red
+//Scalar rMin(, 100, 100);
+//Scalar rMax(, 100, 100);
 
 //inRange(frmHsv, Scalar(MIN_H_BLUE / 2, 100, 80), Scalar(MAX_H_BLUE / 2, 255, 255), rangeRes);
 
@@ -78,7 +78,12 @@ int main(){
 #endif
 }
 
-void prepFrame(Mat &frame){
+void prepFrame(Mat &frame, const Scalar &minColorRange, const Scalar &maxColorRange){
+    //noise smoothing
+    GaussianBlur(frame, frame, Size(5, 5), 3.0, 3.0);
+    //HSV conversion
+    cvtColor(frame, frame, CV_BGR2HSV);
+
     //Color Thresholding
     Mat rangeRes = Mat::zeros(frame.size(), CV_8UC1);
     inRange(frame, minColorRange, maxColorRange, frame);
@@ -91,13 +96,7 @@ void prepFrame(Mat &frame){
 void processFrame(Mat &frame){
     Mat orig = frame.clone();
 
-    //noise smoothing
-    GaussianBlur(frame, frame, Size(5, 5), 3.0, 3.0);
-    //HSV conversion
-    cvtColor(frame, frame, CV_BGR2HSV);
-
-    prepFrame(frame);
-
+    prepFrame(frame, bMin, bMax);
 
     imshow("Threshold", frame);
 
