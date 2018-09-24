@@ -43,7 +43,6 @@ Scalar gMax(60 + gSensitivity, 255, 255);
 
 namespace B {
     vector<vector<Point>> contours;
-    vector<double> contourAreas;
     vector<Vec4i> hierarchy;
     vector<vector<Point>> polygons;
     vector<Rect> boundRect;
@@ -56,7 +55,6 @@ namespace B {
 
 namespace G {
     vector<vector<Point>> contours;
-    vector<double> contourAreas;
     vector<Vec4i> hierarchy;
     vector<Rect> boundRect;
     vector<Point> centers;
@@ -143,10 +141,9 @@ void processFrame(const Mat &frame){
 
 void findTargets(vector<Point> &targets){
     struct Obj {
-        Obj(const Point &center, double area, int index):
-            center(center), area(area), index(index){}
+        Obj(const Point &center, int index):
+            center(center), index(index){}
         Point center;
-        double area; 
         int index;
     };
 
@@ -160,14 +157,14 @@ void findTargets(vector<Point> &targets){
     b_objects.reserve(B::polygons.size());
 
     for(unsigned i = 0; i < B::polygons.size(); ++i){
-        b_objects.emplace_back(B::centers[i], B::contourAreas[i], i);
+        b_objects.emplace_back(B::centers[i], i);
     }
 
     vector<Obj> g_objects;
     g_objects.reserve(G::contours.size());
 
     for(unsigned i = 0; i < G::contours.size(); ++i){
-        g_objects.emplace_back(G::centers[i], G::contourAreas[i], i);
+        g_objects.emplace_back(G::centers[i], i);
     }
 
     //cout << "distance from " << b_objects[0].center << " to " << g_objects[0].center << " is " << 
@@ -232,24 +229,12 @@ void drawAll(const Mat &_orig, const vector<Point> &targets){
         //circle(orig, B::centers[i], 3, Scalar(32,255,255));
     }
 
-    //for(unsigned i = 0; i < B::contourAreas.size(); ++i){
-    //    string str("A=");
-    //    str += std::to_string(B::contourAreas[i]);
-    //    putText(orig, str, B::centers[i] + Point(0, 20), FONT_HERSHEY_PLAIN, 1, Scalar(255,200,200));
-    //}
-
     /***************** G *****************/
 
     for(unsigned i = 0; i < G::contours.size(); ++i){
         drawContours(orig, G::contours, i, Scalar(32,255,255), 1, 8, G::hierarchy, 0, Point());
         //circle(orig, G::centers[i], 3, Scalar(32,255,255));
     }
-
-    //for(unsigned i = 0; i < G::contourAreas.size(); ++i){
-    //    string str("A=");
-    //    str += std::to_string(G::contourAreas[i]);
-    //    putText(orig, str, G::centers[i], FONT_HERSHEY_PLAIN, 1, Scalar(200,255,200));
-    //}
 
     /***************** TARGETS *****************/
     for(unsigned i = 0; i < targets.size(); ++i){
@@ -265,7 +250,6 @@ void processB(const Mat &_frame, const Mat &_orig){
     using namespace B;
 
     contours.clear();
-    contourAreas.clear();
     hierarchy.clear();
     polygons.clear();
     boundRect.clear();
@@ -296,16 +280,12 @@ void processB(const Mat &_frame, const Mat &_orig){
 
     boundRect.reserve(polygons.size());
     centers.reserve(polygons.size());
-    contourAreas.resize(polygons.size());
 
     for(unsigned i = 0; i < polygons.size(); ++i){
         //get bounding rectangle for each polygon
         boundRect[i] = boundingRect(polygons[i]);
         //find center of bounding rectangle
         centers[i] = Point(boundRect[i].x + boundRect[i].width/2, boundRect[i].y + boundRect[i].height/2);
-
-        //get contour areas
-        contourAreas[i] = contourArea(polygons[i]);
     }
 }
 
@@ -332,12 +312,6 @@ void drawB(){
         circle(orig,    centers[i], 3, Scalar(32,255,255));
     }
 
-    for(unsigned i = 0; i < contourAreas.size(); ++i){
-        string str("A=");
-        str += std::to_string(contourAreas[i]);
-        putText(orig, str, centers[i], FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
-    }
-
     //imshow("canny", canny_output);
     imshow("bthreshold", thresh);
     imshow("bdrawing", drawing);
@@ -348,7 +322,6 @@ void processG(const Mat &_frame, const Mat &_orig){
     using namespace G;
 
     contours.clear();
-    contourAreas.clear();
     hierarchy.clear();
     boundRect.clear();
     centers.clear();
@@ -369,30 +342,12 @@ void processG(const Mat &_frame, const Mat &_orig){
     boundRect.reserve(contours.size());
     centers.reserve(contours.size());
 
-    contourAreas.resize(contours.size());
     for(unsigned i = 0; i < contours.size(); ++i){
-        //get contour areas
-        contourAreas[i] = contourArea(contours[i]); 
         //get bounding rectangle for each contour 
         boundRect[i] = boundingRect(contours[i]);
         //find center of bounding rectangle
         centers[i] = Point(boundRect[i].x + boundRect[i].width/2, boundRect[i].y + boundRect[i].height/2);
     }
-
-    ////remove contours with tiny area
-    //const int minArea = 50;
-    //int index = 0;
-    //contourAreas.erase(std::remove_if(contourAreas.begin(), contourAreas.end(),
-    //            [&](const double area) -> bool {
-    //            ++index;
-    //            if(area < minArea){
-    //            contours.erase(contours.begin() + index);
-    //            boundRect.erase(boundRect.begin() + index);
-    //            centers.erase(centers.begin() + index);
-    //            return true; 
-    //            }
-    //            return false;
-    //            }), contourAreas.end());
 }
 
 void drawG(){
@@ -408,12 +363,6 @@ void drawG(){
 
         circle(drawing, centers[i], 3, Scalar(32,255,255));
         circle(orig,    centers[i], 3, Scalar(32,255,255));
-    }
-
-    for(unsigned i = 0; i < contourAreas.size(); ++i){
-        string str("A=");
-        str += std::to_string(contourAreas[i]);
-        putText(orig, str, centers[i], FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
     }
 
     //imshow("canny", canny_output);
