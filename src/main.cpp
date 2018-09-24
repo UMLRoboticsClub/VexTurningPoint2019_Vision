@@ -18,8 +18,12 @@ using std::stringstream;
 using namespace std::chrono;
 using namespace cv;
 
+enum Color { BLUE, RED, GREEN };
+
+Color team = BLUE;
+
 const int cam_index = 0;
-const char *test_image = "field.png";
+const char *test_image = "../img/field.png";
 
 /* params to tune */
 
@@ -45,8 +49,11 @@ Scalar gMin(60 - gSensitivity, 20, 100);
 Scalar gMax(60 + gSensitivity, 255, 255);
 
 //red
-//Scalar rMin(, 100, 100);
-//Scalar rMax(, 100, 100);
+const int rSensitivity = 20;
+Scalar rMin1(0, 100, 100);
+Scalar rMax1(rSensitivity/2, 255, 255);
+Scalar rMin2(180-rSensitivity/2, 100, 100);
+Scalar rMax2(180, 255, 255);
 
 namespace B {
     vector<vector<Point>> contours;
@@ -73,7 +80,7 @@ namespace G {
 };
 
 void prepFrame(Mat &frame);
-void prepFrame2(Mat &frame, const Scalar &minColorRange, const Scalar &maxColorRange);
+void prepFrame2(Mat &frame, Color color);
 void processFrame(const Mat &frame);
 void findTargets(vector<Point> &targets);
 
@@ -83,10 +90,17 @@ void processG(const Mat &_frame, const Mat &_orig);
 void drawG();
 void drawAll(const Mat &_orig, const vector<Point> &targets);
 
-int main(){
+int main(int argc, char **argv){
     const auto &getTime = []{
         return duration<double>(high_resolution_clock::now().time_since_epoch()).count();
     };
+
+    if(argc >= 2){
+        if(strcmp(argv[1], "r") == 0){
+            team = RED;
+        }
+    }
+
 
 #ifdef USE_WEBCAM
     VideoCapture cap;
@@ -122,10 +136,22 @@ void prepFrame(Mat &frame){
     cvtColor(frame, frame, CV_BGR2HSV);
 }
 
-void prepFrame2(Mat &frame, const Scalar &minColorRange, const Scalar &maxColorRange){
+void prepFrame2(Mat &frame, Color color){
     //color thresholding
     Mat rangeRes = Mat::zeros(frame.size(), CV_8UC1);
-    inRange(frame, minColorRange, maxColorRange, frame);
+
+    switch(color){
+        case BLUE:
+            inRange(frame, bMin, bMax, frame);
+            break;
+        case RED:
+            inRange(frame, rMin1, rMax1, frame);
+            inRange(frame, rMin2, rMax2, frame);
+            break;
+        case GREEN:
+            inRange(frame, gMin, gMax, frame);
+            break;
+    }
 
     //Improving the result
     erode(frame, frame, Mat(), Point(-1, -1), 2);
@@ -259,7 +285,7 @@ void processB(const Mat &_frame, const Mat &_orig){
     orig = _orig.clone();
     thresh = _frame.clone();
 
-    prepFrame2(thresh, bMin, bMax);
+    prepFrame2(thresh, team);
 
     //canny edge detection
     Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
@@ -332,7 +358,7 @@ void processG(const Mat &_frame, const Mat &_orig){
     orig = _orig.clone();
     thresh = _frame.clone();
 
-    prepFrame2(thresh, gMin, gMax);
+    prepFrame2(thresh, GREEN);
 
     //canny edge detection
     Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
