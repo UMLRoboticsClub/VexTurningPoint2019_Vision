@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <chrono>
+#include <algorithm>
 
 using std::cout;
 using std::endl;
@@ -137,12 +138,80 @@ void processFrame(const Mat &frame){
     vector<Point> targets;
     findTargets(targets);
     
-
     drawAll(frame);
 }
 
 void findTargets(vector<Point> &targets){
+    struct Obj {
+        Obj(const Point &center, double area, int index):
+            center(center), area(area), index(index){}
+        Point center;
+        double area; 
+        int index;
+    };
 
+    auto dist = [](const Point& pt1, const Point& pt2) -> float {
+        float deltaX = pt1.x - pt2.x;
+        float deltaY = pt1.y - pt2.y;
+        return (deltaX * deltaX) + (deltaY * deltaY);
+    };
+
+    vector<Obj> b_objects;
+    b_objects.reserve(B::polygons.size());
+
+    for(unsigned i = 0; i < B::polygons.size(); ++i){
+        b_objects.emplace_back(B::centers[i], B::contourAreas[i], i);
+    }
+
+    vector<Obj> g_objects;
+    g_objects.reserve(G::contours.size());
+
+    for(unsigned i = 0; i < G::contours.size(); ++i){
+        g_objects.emplace_back(G::centers[i], G::contourAreas[i], i);
+    }
+
+    //cout << "distance from " << b_objects[0].center << " to " << g_objects[0].center << " is " << 
+    //dist(b_objects[0].center, g_objects[0].center) << endl;
+
+    struct Pair {
+        Pair(Obj a, Obj b, float dist):
+            a(a), b(b), dist(dist){}
+        Obj a, b;
+        float dist;
+    };
+
+    vector<Pair> closest_pairs;
+    closest_pairs.reserve(b_objects.size());
+
+    for(unsigned i = 0; i < b_objects.size(); ++i){
+        float smallestVal = 1E10;
+        int smallestObjIndex = 0;
+        for(unsigned j = 0; j < g_objects.size(); ++j){
+            float val = dist(b_objects[i].center, g_objects[j].center);
+            if(val < smallestVal){
+                smallestVal = val;
+                smallestObjIndex = j;
+            }
+        }
+        closest_pairs.emplace_back(b_objects[i], g_objects[smallestObjIndex], smallestVal);
+        g_objects.erase(g_objects.begin() + smallestObjIndex);
+    }
+
+    std::sort(closest_pairs.begin(), closest_pairs.end(),
+            [](Pair &a, Pair &b) -> bool {
+            return a.dist < b.dist;
+            });
+
+    Mat canvas = Mat::zeros(B::canny_output.size(), CV_8UC3);
+    for(unsigned i = 0; i < closest_pairs.size(); ++i){
+        cout << "dist:" << closest_pairs[i].dist << endl;
+        line(canvas, closest_pairs[i].a.center, closest_pairs[i].b.center, Scalar(255,255,255));
+    }
+
+    imshow("targets", canvas);
+
+
+    targets.push_back(Point(0,0));
 }
 
 void drawAll(const Mat &_orig){
