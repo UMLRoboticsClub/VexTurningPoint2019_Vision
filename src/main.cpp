@@ -20,12 +20,17 @@ using namespace cv;
 const int cam_index = 0;
 const char *test_image = "field.png";
 
-//params to tune
+/* params to tune */
+
+//dist between green and target (px)
+const double minDist = 20;
+const double maxDist = 10000;
+
 const int edgeThresh = 100;
 const int maxEdgeThresh = 200;
 const double polyEpsilon = 14;
 
-//HSV color ranges for flags
+/* HSV color ranges for flags */
 
 //blue
 const int bSensitivity = 20;
@@ -135,17 +140,17 @@ void processFrame(const Mat &frame){
 
     vector<Point> targets;
     findTargets(targets);
-    
+
     drawAll(frame, targets);
 }
 
 void findTargets(vector<Point> &targets){
-    struct Obj {
-        Obj(const Point &center, int index):
-            center(center), index(index){}
-        Point center;
-        int index;
-    };
+    //struct obj {
+    //    obj(const point &center, int index):
+    //        center(center), index(index){}
+    //    point center;
+    //    int index;
+    //};
 
     auto dist = [](const Point& pt1, const Point& pt2) -> float {
         float deltaX = pt1.x - pt2.x;
@@ -153,45 +158,30 @@ void findTargets(vector<Point> &targets){
         return (deltaX * deltaX) + (deltaY * deltaY);
     };
 
-    vector<Obj> b_objects;
-    b_objects.reserve(B::polygons.size());
-
-    for(unsigned i = 0; i < B::polygons.size(); ++i){
-        b_objects.emplace_back(B::centers[i], i);
-    }
-
-    vector<Obj> g_objects;
-    g_objects.reserve(G::contours.size());
-
-    for(unsigned i = 0; i < G::contours.size(); ++i){
-        g_objects.emplace_back(G::centers[i], i);
-    }
-
     //cout << "distance from " << b_objects[0].center << " to " << g_objects[0].center << " is " << 
     //dist(b_objects[0].center, g_objects[0].center) << endl;
 
     struct Pair {
-        Pair(Obj a, Obj b, float dist):
+        Pair(int a, int b, float dist):
             a(a), b(b), dist(dist){}
-        Obj a, b;
+        int a, b;
         float dist;
     };
 
     vector<Pair> closest_pairs;
-    closest_pairs.reserve(b_objects.size());
+    closest_pairs.reserve(B::polygons.size());
 
-    for(unsigned i = 0; i < b_objects.size(); ++i){
+    for(unsigned i = 0; i < B::polygons.size(); ++i){
         float smallestVal = 1E10;
         int smallestObjIndex = 0;
-        for(unsigned j = 0; j < g_objects.size(); ++j){
-            float val = dist(b_objects[i].center, g_objects[j].center);
+        for(unsigned j = 0; j < G::contours.size(); ++j){
+            float val = dist(B::centers[i], G::centers[j]);
             if(val < smallestVal){
                 smallestVal = val;
                 smallestObjIndex = j;
             }
         }
-        closest_pairs.emplace_back(b_objects[i], g_objects[smallestObjIndex], smallestVal);
-        g_objects.erase(g_objects.begin() + smallestObjIndex);
+        closest_pairs.emplace_back(i, smallestObjIndex, smallestVal);
     }
 
     std::sort(closest_pairs.begin(), closest_pairs.end(),
@@ -202,17 +192,11 @@ void findTargets(vector<Point> &targets){
     Mat canvas = Mat::zeros(B::canny_output.size(), CV_8UC3);
     for(unsigned i = 0; i < closest_pairs.size(); ++i){
         //cout << "dist:" << closest_pairs[i].dist << endl;
-        line(canvas, closest_pairs[i].a.center, closest_pairs[i].b.center, Scalar(255,255,255));
-
-        int aIndex = closest_pairs[i].a.index;
-        //int bIndex = closest_pairs[i].b.index;
-
-        const double minDist = 20;
-        const double maxDist = 10000;
+        line(canvas, B::centers[closest_pairs[i].a], G::centers[closest_pairs[i].b], Scalar(255,255,255));
 
         if(closest_pairs[i].dist > minDist && closest_pairs[i].dist < maxDist){
-            circle(canvas, closest_pairs[i].a.center, 3, Scalar(32,255,255));
-            targets.push_back(B::centers[aIndex]);
+            circle(canvas, B::centers[closest_pairs[i].a], 3, Scalar(32,255,255));
+            targets.push_back(B::centers[closest_pairs[i].a]);
         }
     }
 
@@ -306,10 +290,9 @@ void drawB(){
         //circle(drawing, polygons[i][2], 3, Scalar(32,255,255));
         //circle(drawing, polygons[i][3], 3, Scalar(32,255,255));
 
-        drawContours(orig,    polygons, i, Scalar(32,255,255), 1, 8, hierarchy, 0, Point());
-
+        drawContours(orig, polygons, i, Scalar(32,255,255), 1, 8, hierarchy, 0, Point());
         circle(drawing, centers[i], 3, Scalar(32,255,255));
-        circle(orig,    centers[i], 3, Scalar(32,255,255));
+        circle(orig, centers[i], 3, Scalar(32,255,255));
     }
 
     //imshow("canny", canny_output);
