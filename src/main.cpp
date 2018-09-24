@@ -1,4 +1,4 @@
-//#define USE_WEBCAM
+#define USE_WEBCAM
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -75,7 +75,7 @@ void processB(const Mat &_frame, const Mat &_orig);
 void drawB();
 void processG(const Mat &_frame, const Mat &_orig);
 void drawG();
-void drawAll(const Mat &_orig);
+void drawAll(const Mat &_orig, const vector<Point> &targets);
 
 int main(){
     const auto &getTime = []{
@@ -138,7 +138,7 @@ void processFrame(const Mat &frame){
     vector<Point> targets;
     findTargets(targets);
     
-    drawAll(frame);
+    drawAll(frame, targets);
 }
 
 void findTargets(vector<Point> &targets){
@@ -204,45 +204,62 @@ void findTargets(vector<Point> &targets){
 
     Mat canvas = Mat::zeros(B::canny_output.size(), CV_8UC3);
     for(unsigned i = 0; i < closest_pairs.size(); ++i){
-        cout << "dist:" << closest_pairs[i].dist << endl;
+        //cout << "dist:" << closest_pairs[i].dist << endl;
         line(canvas, closest_pairs[i].a.center, closest_pairs[i].b.center, Scalar(255,255,255));
+
+        int aIndex = closest_pairs[i].a.index;
+        int bIndex = closest_pairs[i].b.index;
+
+        double ratio = G::contourAreas[bIndex] / B::contourAreas[aIndex];
+        //supposed to be 0.31966, but looks like most are ~0.433
+        const double idealRatio = 0.43;
+        const double precision = 0.1;
+
+            putText(canvas, string("r=") + std::to_string(ratio), closest_pairs[i].a.center + Point(0,-20), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
+        if(ratio < idealRatio + precision && ratio > idealRatio - precision){
+            circle(canvas, closest_pairs[i].a.center, 3, Scalar(32,255,255));
+            targets.push_back(B::centers[aIndex]);
+        }
     }
 
     imshow("targets", canvas);
-
-
-    targets.push_back(Point(0,0));
 }
 
-void drawAll(const Mat &_orig){
+void drawAll(const Mat &_orig, const vector<Point> &targets){
     Mat orig = _orig.clone();
 
     //using namespace B;
     /***************** B *****************/
     for(unsigned i = 0; i < B::polygons.size(); ++i){
         drawContours(orig, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
-        circle(orig, B::centers[i], 3, Scalar(32,255,255));
+        //circle(orig, B::centers[i], 3, Scalar(32,255,255));
     }
 
-    for(unsigned i = 0; i < B::contourAreas.size(); ++i){
-        string str("A=");
-        str += std::to_string(B::contourAreas[i]);
-        putText(orig, str, B::centers[i] + Point(0, 20), FONT_HERSHEY_PLAIN, 1, Scalar(255,200,200));
-    }
+    //for(unsigned i = 0; i < B::contourAreas.size(); ++i){
+    //    string str("A=");
+    //    str += std::to_string(B::contourAreas[i]);
+    //    putText(orig, str, B::centers[i] + Point(0, 20), FONT_HERSHEY_PLAIN, 1, Scalar(255,200,200));
+    //}
 
     /***************** G *****************/
 
     for(unsigned i = 0; i < G::contours.size(); ++i){
         drawContours(orig, G::contours, i, Scalar(32,255,255), 1, 8, G::hierarchy, 0, Point());
-        circle(orig, G::centers[i], 3, Scalar(32,255,255));
+        //circle(orig, G::centers[i], 3, Scalar(32,255,255));
     }
 
-    for(unsigned i = 0; i < G::contourAreas.size(); ++i){
-        string str("A=");
-        str += std::to_string(G::contourAreas[i]);
-        putText(orig, str, G::centers[i], FONT_HERSHEY_PLAIN, 1, Scalar(200,255,200));
+    //for(unsigned i = 0; i < G::contourAreas.size(); ++i){
+    //    string str("A=");
+    //    str += std::to_string(G::contourAreas[i]);
+    //    putText(orig, str, G::centers[i], FONT_HERSHEY_PLAIN, 1, Scalar(200,255,200));
+    //}
+
+    /***************** TARGETS *****************/
+    for(unsigned i = 0; i < targets.size(); ++i){
+        circle(orig, targets[i], 8, Scalar(0,0,0), -1);
+        circle(orig, targets[i], 3, Scalar(255,255,255), -1);
+        putText(orig, "TARGET", targets[i], FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
     }
-    //
 
     imshow("overlay", orig);
 }
