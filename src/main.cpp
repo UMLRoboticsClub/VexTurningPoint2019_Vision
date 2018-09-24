@@ -1,4 +1,4 @@
-#define USE_WEBCAM
+//#define USE_WEBCAM
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -192,12 +192,16 @@ void findTargets(vector<Point> &targets){
     Mat canvas = Mat::zeros(B::canny_output.size(), CV_8UC3);
     for(unsigned i = 0; i < closest_pairs.size(); ++i){
         //cout << "dist:" << closest_pairs[i].dist << endl;
-        line(canvas, B::centers[closest_pairs[i].a], G::centers[closest_pairs[i].b], Scalar(255,255,255));
-
         if(closest_pairs[i].dist > minDist && closest_pairs[i].dist < maxDist){
-            circle(canvas, B::centers[closest_pairs[i].a], 3, Scalar(32,255,255));
             targets.push_back(B::centers[closest_pairs[i].a]);
+
+            circle(canvas, B::centers[closest_pairs[i].a], 3, Scalar(32,255,255));
+            line(canvas, B::centers[closest_pairs[i].a], G::centers[closest_pairs[i].b], Scalar(255,255,255));
+        } else {
+            line(canvas, B::centers[closest_pairs[i].a], G::centers[closest_pairs[i].b], Scalar(100,100,100));
         }
+
+        putText(canvas, string("dist:") + std::to_string(closest_pairs[i].dist), B::centers[closest_pairs[i].a] + Point(0,-10), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
     }
 
     imshow("targets", canvas);
