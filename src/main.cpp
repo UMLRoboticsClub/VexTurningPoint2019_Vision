@@ -1,4 +1,5 @@
 //#define USE_WEBCAM
+#define DEBUG
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -17,14 +18,14 @@ using std::stringstream;
 using namespace std::chrono;
 using namespace cv;
 
-const int cam_index = 2;
+const int cam_index = 0;
 const char *test_image = "field.png";
 
 /* params to tune */
 
-////dist between green and target (px)
-//const double minDist = 20;
-//const double maxDist = 10000;
+//ratio of dist to green/
+const double minRatio = 0.3;
+const double maxRatio = 0.65;
 //canny params
 const int edgeThresh = 100;
 const int maxEdgeThresh = 200;
@@ -87,17 +88,17 @@ int main(){
         return duration<double>(high_resolution_clock::now().time_since_epoch()).count();
     };
 
+#ifdef USE_WEBCAM
     VideoCapture cap;
     if(!cap.open(cam_index)){
         cout << "cannot open video device\n";
         exit(1);
     }
-
     Mat frame;
-
-#ifndef USE_WEBCAM
-    frame = imread(test_image);
 #else
+    Mat frame = imread(test_image);
+#endif
+#ifdef USE_WEBCAM
     cout << "\nHit 'q' to exit...\n";
     while(waitKey(1) != 'q'){
         cap >> frame;
@@ -137,14 +138,16 @@ void processFrame(const Mat &frame){
     prepFrame(processed);
 
     processB(processed, frame);
-    //drawB();
     processG(processed, frame);
-    //drawG();
 
     vector<Point> targets;
     findTargets(targets);
 
-    //drawAll(frame, targets);
+#ifdef DEBUG
+    //drawB();
+    //drawG();
+    drawAll(frame, targets);
+#endif
 }
 
 void findTargets(vector<Point> &targets){
@@ -185,7 +188,9 @@ void findTargets(vector<Point> &targets){
             return a.dist < b.dist;
             });
 
+#ifdef DEBUG
     Mat canvas = Mat::zeros(B::canny_output.size(), CV_8UC3);
+#endif
     for(unsigned i = 0; i < closest_pairs.size(); ++i){
         //if(closest_pairs[i].dist > minDist && closest_pairs[i].dist < maxDist){
 
@@ -197,17 +202,21 @@ void findTargets(vector<Point> &targets){
         if(ratio > minRatio && ratio < maxRatio){
             targets.push_back(B::centers[closest_pairs[i].a]);
 
+#ifdef DEBUG
             circle(canvas, B::centers[closest_pairs[i].a], 3, Scalar(32,255,255));
             line(canvas, B::centers[closest_pairs[i].a], G::centers[closest_pairs[i].b], Scalar(255,255,255));
-        } else {
-            //line(canvas, B::centers[closest_pairs[i].a], G::centers[closest_pairs[i].b], Scalar(100,100,100));
+#endif
         }
 
+#ifdef DEBUG
         putText(canvas, string("dist:") + std::to_string(closest_pairs[i].dist), B::centers[closest_pairs[i].a] + Point(0,-10), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
         putText(canvas, string("area:") + std::to_string(B::pAreas[closest_pairs[i].a]), B::centers[closest_pairs[i].a] + Point(0,10), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
+#endif
     }
 
+#ifdef DEBUG
     imshow("targets", canvas);
+#endif
 }
 
 void drawAll(const Mat &_orig, const vector<Point> &targets){
