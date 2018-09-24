@@ -17,24 +17,25 @@ using std::stringstream;
 using namespace std::chrono;
 using namespace cv;
 
-const int cam_index = 0;
+const int cam_index = 2;
 const char *test_image = "field.png";
 
 /* params to tune */
 
-//dist between green and target (px)
-const double minDist = 20;
-const double maxDist = 10000;
-
+////dist between green and target (px)
+//const double minDist = 20;
+//const double maxDist = 10000;
+//canny params
 const int edgeThresh = 100;
 const int maxEdgeThresh = 200;
+//polygon approximation
 const double polyEpsilon = 14;
 
 /* HSV color ranges for flags */
 
 //blue
 const int bSensitivity = 20;
-Scalar bMin(120 - bSensitivity, 70, 100);
+Scalar bMin(120 - bSensitivity, 70, 70);
 Scalar bMax(120 + bSensitivity, 255, 255);
 
 //green
@@ -50,6 +51,7 @@ namespace B {
     vector<vector<Point>> contours;
     vector<Vec4i> hierarchy;
     vector<vector<Point>> polygons;
+    vector<double> pAreas;
     vector<Rect> boundRect;
     vector<Point> centers;
 
@@ -104,6 +106,7 @@ int main(){
         processFrame(frame);
         const double delta = getTime() - before;
         cout << "Time elapsed: " << delta * 1000.f << " ms" << endl;
+
 #ifdef USE_WEBCAM
     }
 #else
@@ -141,17 +144,10 @@ void processFrame(const Mat &frame){
     vector<Point> targets;
     findTargets(targets);
 
-    drawAll(frame, targets);
+    //drawAll(frame, targets);
 }
 
 void findTargets(vector<Point> &targets){
-    //struct obj {
-    //    obj(const point &center, int index):
-    //        center(center), index(index){}
-    //    point center;
-    //    int index;
-    //};
-
     auto dist = [](const Point& pt1, const Point& pt2) -> float {
         float deltaX = pt1.x - pt2.x;
         float deltaY = pt1.y - pt2.y;
@@ -191,17 +187,24 @@ void findTargets(vector<Point> &targets){
 
     Mat canvas = Mat::zeros(B::canny_output.size(), CV_8UC3);
     for(unsigned i = 0; i < closest_pairs.size(); ++i){
-        //cout << "dist:" << closest_pairs[i].dist << endl;
-        if(closest_pairs[i].dist > minDist && closest_pairs[i].dist < maxDist){
+        //if(closest_pairs[i].dist > minDist && closest_pairs[i].dist < maxDist){
+
+        const double minRatio = 0.3;
+        const double maxRatio = 0.65;
+        double ratio = closest_pairs[i].dist / B::pAreas[closest_pairs[i].a];
+        //cout << "ratio:" << ratio << endl;
+
+        if(ratio > minRatio && ratio < maxRatio){
             targets.push_back(B::centers[closest_pairs[i].a]);
 
             circle(canvas, B::centers[closest_pairs[i].a], 3, Scalar(32,255,255));
             line(canvas, B::centers[closest_pairs[i].a], G::centers[closest_pairs[i].b], Scalar(255,255,255));
         } else {
-            line(canvas, B::centers[closest_pairs[i].a], G::centers[closest_pairs[i].b], Scalar(100,100,100));
+            //line(canvas, B::centers[closest_pairs[i].a], G::centers[closest_pairs[i].b], Scalar(100,100,100));
         }
 
         putText(canvas, string("dist:") + std::to_string(closest_pairs[i].dist), B::centers[closest_pairs[i].a] + Point(0,-10), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
+        putText(canvas, string("area:") + std::to_string(B::pAreas[closest_pairs[i].a]), B::centers[closest_pairs[i].a] + Point(0,10), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
     }
 
     imshow("targets", canvas);
@@ -257,6 +260,7 @@ void processB(const Mat &_frame, const Mat &_orig){
     //CV_RETR_EXTERNAL = get just external contours (no nesting)
 
     polygons.resize(contours.size());
+    pAreas.resize(contours.size());
     for(unsigned i = 0; i < contours.size(); ++i){
         //get polygons from contours
         approxPolyDP(contours[i], polygons[i], polyEpsilon, true);
@@ -274,6 +278,8 @@ void processB(const Mat &_frame, const Mat &_orig){
         boundRect[i] = boundingRect(polygons[i]);
         //find center of bounding rectangle
         centers[i] = Point(boundRect[i].x + boundRect[i].width/2, boundRect[i].y + boundRect[i].height/2);
+        //find area of polygon
+        pAreas[i] = contourArea(polygons[i]);
     }
 }
 
