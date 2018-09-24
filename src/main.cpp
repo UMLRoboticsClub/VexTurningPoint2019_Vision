@@ -83,7 +83,7 @@ int main(){
     };
 
     VideoCapture cap;
-    if (!cap.open(cam_index)){
+    if(!cap.open(cam_index)){
         cout << "cannot open video device\n";
         exit(1);
     }
@@ -208,15 +208,12 @@ void findTargets(vector<Point> &targets){
         line(canvas, closest_pairs[i].a.center, closest_pairs[i].b.center, Scalar(255,255,255));
 
         int aIndex = closest_pairs[i].a.index;
-        int bIndex = closest_pairs[i].b.index;
+        //int bIndex = closest_pairs[i].b.index;
 
-        double ratio = G::contourAreas[bIndex] / B::contourAreas[aIndex];
-        //supposed to be 0.31966, but looks like most are ~0.433
-        const double idealRatio = 0.43;
-        const double precision = 0.1;
+        const double minDist = 20;
+        const double maxDist = 10000;
 
-            putText(canvas, string("r=") + std::to_string(ratio), closest_pairs[i].a.center + Point(0,-20), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
-        if(ratio < idealRatio + precision && ratio > idealRatio - precision){
+        if(closest_pairs[i].dist > minDist && closest_pairs[i].dist < maxDist){
             circle(canvas, closest_pairs[i].a.center, 3, Scalar(32,255,255));
             targets.push_back(B::centers[aIndex]);
         }
