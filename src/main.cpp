@@ -123,7 +123,7 @@ int main(int argc, char **argv){
         exit(1);
     }
 
-    boost::asio::io_context serialContext;
+    /*boost::asio::io_context serialContext;
     boost::asio::serial_port serial(serialContext);
     try {
         serial.open(serialPortName);
@@ -145,7 +145,7 @@ int main(int argc, char **argv){
     } catch(boost::system::system_error&){
         cout << "unable to open serial device: " << serialPortName << endl;
         exit(1);
-    }
+    }*/
 
     Mat frame;
 #else
@@ -261,10 +261,6 @@ void findTargets(vector<Point> &targets){
     Mat canvas = Mat::zeros(F::canny_output.size(), CV_8UC3);
 #endif
     for(unsigned i = 0; i < closest_pairs.size(); ++i){
-        //if(closest_pairs[i].dist > minDist && closest_pairs[i].dist < maxDist){
-
-        const double minRatio = 0.3;
-        const double maxRatio = 0.65;
         double ratio = closest_pairs[i].dist / F::pAreas[closest_pairs[i].a];
         //cout << "ratio:" << ratio << endl;
 

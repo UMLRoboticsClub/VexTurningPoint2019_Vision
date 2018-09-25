@@ -1,12 +1,17 @@
 #arch: install opencv, hdf5, and boost
 CXX      = g++
 LDFLAGS  = $(shell pkg-config --libs opencv) -lpthread -lboost_system
-INCLUDE  = 
-CXXFLAGS = -std=gnu++17 -Wall -Wextra -Wfatal-errors -O3
+CXXFLAGS = -std=gnu++17 -Wall -Wextra -Wfatal-errors -O3 -g -funroll-loops
 CXXFLAGS += $(INCLUDE)
 TARGET   = vision
 SRCFILES = main.cpp
 OBJECTS  = $(patsubst %.cpp, %.o, $(SRCFILES))
+
+ifeq ($(shell uname -p),aarch64)
+        INCLUDE  = -I/usr/local/include/opencv4
+else
+        INCLUDE  =
+endif
 
 all: $(TARGET)
 
