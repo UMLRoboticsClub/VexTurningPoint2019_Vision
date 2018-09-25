@@ -26,8 +26,9 @@ enum Color { BLUE, RED, GREEN };
 
 Color team = BLUE;
 
+/* settings */
 const int cam_index = 0;
-const char *test_image = "../img/field2.png";
+const char *test_image = "../img/field2.jpg";
 const char *serialPortName = "/dev/ttyUSB0";
 const unsigned serialBaudRate = 115200;
 
