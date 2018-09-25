@@ -1,6 +1,6 @@
 //#define USE_WEBCAM
 //#define DEBUG
-#define DRAW_OVERLAY
+//#define DRAW_OVERLAY
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -172,7 +172,7 @@ void prepFrame(Mat &frame){
     //noise smoothing
     GaussianBlur(frame, frame, Size(5, 5), 3.0, 3.0);
     //HSV conversion
-    cvtColor(frame, frame, CV_BGR2HSV);
+    cvtColor(frame, frame, COLOR_BGR2HSV);
 }
 
 void prepFrame2(Mat &frame, Color color){
@@ -213,6 +213,7 @@ void processFrame(const Mat &_frame){
 
     vector<Point> targets;
     findTargets(targets);
+    cout << "found " << targets.size() << " targets" << endl;
 
 #ifdef DEBUG
     drawDbg(_frame);
@@ -372,7 +373,7 @@ void processF(const Mat &_frame){
     Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
 
     //find contours
-    findContours(canny_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+    findContours(canny_output, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
     //CV_RETR_EXTERNAL = get just external contours (no nesting)
 
     polygons.resize(contours.size());
@@ -416,7 +417,7 @@ void processG(const Mat &_frame){
     Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
 
     //find contours
-    findContours(canny_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+    findContours(canny_output, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
     //CV_RETR_EXTERNAL = get just external contours (no nesting)
 
     boundRect.reserve(contours.size());
