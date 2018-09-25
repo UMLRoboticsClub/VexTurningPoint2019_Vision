@@ -1,6 +1,6 @@
 //#define USE_WEBCAM
 //#define DEBUG
-//#define DRAW_OVERLAY
+#define DRAW_OVERLAY
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -55,13 +55,15 @@ Scalar gMin(60 - gSensitivity, 25, 100);
 Scalar gMax(60 + gSensitivity, 255, 255);
 
 //red
+//this has 2 ranges because red 
+//wraps around the HSV spectrum
 const int rSensitivity = 20;
 Scalar rMin1(0, 70, 70);
 Scalar rMax1(rSensitivity/2, 255, 255);
 Scalar rMin2(180-rSensitivity/2, 70, 70);
 Scalar rMax2(180, 255, 255);
 
-namespace B {
+namespace F {
     vector<vector<Point>> contours;
     vector<Vec4i> hierarchy;
     vector<vector<Point>> polygons;
@@ -83,14 +85,22 @@ namespace G {
     Mat canny_output;
 };
 
-void prepFrame(Mat &frame);
-void prepFrame2(Mat &frame, Color color);
+//extract all info from frame
 void processFrame(const Mat &_frame);
+//blur and convert colors
+void prepFrame(Mat &frame);
+//filter color and refine mask
+void prepFrame2(Mat &frame, Color color);
+//finally determine where the flags are
 void findTargets(vector<Point> &targets);
 
-void processB(const Mat &_frame);
+//process flag colored blobs
+void processF(const Mat &_frame);
+//process green colored blobs
 void processG(const Mat &_frame);
+//draw thresholds and bounding boxes for everything
 void drawDbg(const Mat &_orig);
+//draw original image overlayed with found targets
 void drawOverlay(const Mat &_orig, const vector<Point> &targets);
 
 int main(int argc, char **argv){
@@ -192,10 +202,10 @@ void processFrame(const Mat &_frame){
     Mat frame = _frame.clone();
     prepFrame(frame);
 
-    //processB(frame);
+    //processF(frame);
     //processG(frame);
 
-    thread t_b([&](){ processB(frame); });
+    thread t_b([&](){ processF(frame); });
     thread t_g([&](){ processG(frame); });
     t_b.join();
     t_g.join();
@@ -226,13 +236,13 @@ void findTargets(vector<Point> &targets){
     };
 
     vector<Pair> closest_pairs;
-    closest_pairs.reserve(B::polygons.size());
+    closest_pairs.reserve(F::polygons.size());
 
-    for(unsigned i = 0; i < B::polygons.size(); ++i){
+    for(unsigned i = 0; i < F::polygons.size(); ++i){
         float smallestVal = 1E10;
         int smallestObjIndex = 0;
         for(unsigned j = 0; j < G::contours.size(); ++j){
-            float val = dist(B::centers[i], G::centers[j]);
+            float val = dist(F::centers[i], G::centers[j]);
             if(val < smallestVal){
                 smallestVal = val;
                 smallestObjIndex = j;
@@ -247,28 +257,28 @@ void findTargets(vector<Point> &targets){
             });
 
 #ifdef DEBUG
-    Mat canvas = Mat::zeros(B::canny_output.size(), CV_8UC3);
+    Mat canvas = Mat::zeros(F::canny_output.size(), CV_8UC3);
 #endif
     for(unsigned i = 0; i < closest_pairs.size(); ++i){
         //if(closest_pairs[i].dist > minDist && closest_pairs[i].dist < maxDist){
 
         const double minRatio = 0.3;
         const double maxRatio = 0.65;
-        double ratio = closest_pairs[i].dist / B::pAreas[closest_pairs[i].a];
+        double ratio = closest_pairs[i].dist / F::pAreas[closest_pairs[i].a];
         //cout << "ratio:" << ratio << endl;
 
         if(ratio > minRatio && ratio < maxRatio){
-            targets.push_back(B::centers[closest_pairs[i].a]);
+            targets.push_back(F::centers[closest_pairs[i].a]);
 
 #ifdef DEBUG
-            circle(canvas, B::centers[closest_pairs[i].a], 3, Scalar(32,255,255));
-            line(canvas, B::centers[closest_pairs[i].a], G::centers[closest_pairs[i].b], Scalar(255,255,255));
+            circle(canvas, F::centers[closest_pairs[i].a], 3, Scalar(32,255,255));
+            line(canvas, F::centers[closest_pairs[i].a], G::centers[closest_pairs[i].b], Scalar(255,255,255));
 #endif
         }
 
 #ifdef DEBUG
-        putText(canvas, string("dist:") + std::to_string(closest_pairs[i].dist), B::centers[closest_pairs[i].a] + Point(0,-10), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
-        putText(canvas, string("area:") + std::to_string(B::pAreas[closest_pairs[i].a]), B::centers[closest_pairs[i].a] + Point(0,10), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
+        putText(canvas, string("dist:") + std::to_string(closest_pairs[i].dist), F::centers[closest_pairs[i].a] + Point(0,-10), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
+        putText(canvas, string("area:") + std::to_string(F::pAreas[closest_pairs[i].a]), F::centers[closest_pairs[i].a] + Point(0,10), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
 #endif
     }
 
@@ -281,31 +291,31 @@ void drawDbg(const Mat &_orig){
     Mat orig = _orig.clone();
 
     /***************** B *****************/
-    for(unsigned i = 0; i < B::polygons.size(); ++i){
-        drawContours(orig, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
-        //circle(orig, B::centers[i], 3, Scalar(32,255,255));
+    for(unsigned i = 0; i < F::polygons.size(); ++i){
+        drawContours(orig, F::polygons, i, Scalar(32,255,255), 1, 8, F::hierarchy, 0, Point());
+        //circle(orig, F::centers[i], 3, Scalar(32,255,255));
     }
 
-    Mat drawing = Mat::zeros(B::canny_output.size(), CV_8UC3);
+    Mat drawing = Mat::zeros(F::canny_output.size(), CV_8UC3);
 
-    for(unsigned i = 0; i < B::contours.size(); ++i){
-        drawContours(drawing, B::contours, i, Scalar(32,32,32), 2, 8, B::hierarchy, 0, Point());
+    for(unsigned i = 0; i < F::contours.size(); ++i){
+        drawContours(drawing, F::contours, i, Scalar(32,32,32), 2, 8, F::hierarchy, 0, Point());
     }
 
-    for(unsigned i = 0; i < B::polygons.size(); ++i){
-        drawContours(drawing, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
+    for(unsigned i = 0; i < F::polygons.size(); ++i){
+        drawContours(drawing, F::polygons, i, Scalar(32,255,255), 1, 8, F::hierarchy, 0, Point());
 
         //circle(drawing, polygons[i][0], 3, Scalar(32,255,255));
         //circle(drawing, polygons[i][1], 3, Scalar(32,255,255));
         //circle(drawing, polygons[i][2], 3, Scalar(32,255,255));
         //circle(drawing, polygons[i][3], 3, Scalar(32,255,255));
 
-        drawContours(drawing, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
-        circle(drawing, B::centers[i], 3, Scalar(32,255,255));
+        drawContours(drawing, F::polygons, i, Scalar(32,255,255), 1, 8, F::hierarchy, 0, Point());
+        circle(drawing, F::centers[i], 3, Scalar(32,255,255));
     }
 
     //imshow("canny", canny_output);
-    imshow("bthreshold", B::thresh);
+    imshow("bthreshold", F::thresh);
     imshow("bdrawing", drawing);
 
     /***************** G *****************/
@@ -332,8 +342,8 @@ void drawDbg(const Mat &_orig){
 
 void drawOverlay(const Mat &_orig, const vector<Point> &targets){
     Mat orig = _orig.clone();
-    for(unsigned i = 0; i < B::polygons.size(); ++i){
-        drawContours(orig, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
+    for(unsigned i = 0; i < F::polygons.size(); ++i){
+        drawContours(orig, F::polygons, i, Scalar(32,255,255), 1, 8, F::hierarchy, 0, Point());
     }
     for(unsigned i = 0; i < G::contours.size(); ++i){
         drawContours(orig, G::contours, i, Scalar(32,255,255), 1, 8, G::hierarchy, 0, Point());
@@ -347,8 +357,8 @@ void drawOverlay(const Mat &_orig, const vector<Point> &targets){
     imshow("overlay", orig);
 }
 
-void processB(const Mat &_frame){
-    using namespace B;
+void processF(const Mat &_frame){
+    using namespace F;
 
     contours.clear();
     hierarchy.clear();
