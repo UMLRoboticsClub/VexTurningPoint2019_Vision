@@ -1,5 +1,5 @@
 //#define USE_WEBCAM
-#define DEBUG
+//#define DEBUG
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -86,12 +86,12 @@ namespace G {
 
 void prepFrame(Mat &frame);
 void prepFrame2(Mat &frame, Color color);
-void processFrame(const Mat &frame);
+void processFrame(const Mat &_frame);
 void findTargets(vector<Point> &targets);
 
-void processB(const Mat &_frame, const Mat &_orig);
+void processB(const Mat &_frame);
 void drawB();
-void processG(const Mat &_frame, const Mat &_orig);
+void processG(const Mat &_frame);
 void drawG();
 void drawAll(const Mat &_orig, const vector<Point> &targets);
 
@@ -168,8 +168,6 @@ void prepFrame(Mat &frame){
 
 void prepFrame2(Mat &frame, Color color){
     //color thresholding
-    Mat rangeRes = Mat::zeros(frame.size(), CV_8UC1);
-
     switch(color){
         case BLUE:
             inRange(frame, bMin, bMax, frame);
@@ -192,15 +190,15 @@ void prepFrame2(Mat &frame, Color color){
     dilate(frame, frame, Mat(), Point(-1, -1), 2);
 }
 
-void processFrame(const Mat &frame){
-    Mat processed = frame.clone();
-    prepFrame(processed);
+void processFrame(const Mat &_frame){
+    Mat frame = _frame.clone();
+    prepFrame(frame);
 
-    //processB(processed, frame);
-    //processG(processed, frame);
+    //processB(frame);
+    //processG(frame);
 
-    thread t_b([&](){ processB(processed, frame); });
-    thread t_g([&](){ processG(processed, frame); });
+    thread t_b([&](){ processB(frame); });
+    thread t_g([&](){ processG(frame); });
     t_b.join();
     t_g.join();
 
@@ -307,7 +305,7 @@ void findTargets(vector<Point> &targets){
         imshow("overlay", orig);
     }
 
-    void processB(const Mat &_frame, const Mat &_orig){
+    void processB(const Mat &_frame){
         using namespace B;
 
         contours.clear();
@@ -317,7 +315,6 @@ void findTargets(vector<Point> &targets){
         centers.clear();
         //
 
-        orig = _orig.clone();
         thresh = _frame.clone();
 
         prepFrame2(thresh, team);
@@ -381,7 +378,7 @@ void findTargets(vector<Point> &targets){
         imshow("borig", orig);
     }
 
-    void processG(const Mat &_frame, const Mat &_orig){
+    void processG(const Mat &_frame){
         using namespace G;
 
         contours.clear();
@@ -390,7 +387,6 @@ void findTargets(vector<Point> &targets){
         centers.clear();
         //
 
-        orig = _orig.clone();
         thresh = _frame.clone();
 
         prepFrame2(thresh, GREEN);
