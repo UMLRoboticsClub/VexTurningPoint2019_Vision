@@ -12,12 +12,13 @@
 #include <string>
 #include <chrono>
 #include <algorithm>
+#include <thread>
 
 using std::cout;
 using std::endl;
 using std::string;
 using std::vector;
-using std::stringstream;
+using std::thread;
 using namespace cv;
 
 enum Color { BLUE, RED, GREEN };
@@ -26,7 +27,6 @@ Color team = BLUE;
 
 const int cam_index = 0;
 const char *test_image = "../img/field.png";
-boost::asio::io_context serialContext;
 const char *serialPortName = "/dev/ttyUSB0";
 const unsigned serialBaudRate = 115200;
 
@@ -114,18 +114,20 @@ int main(int argc, char **argv){
         exit(1);
     }
 
+    boost::asio::io_context serialContext;
     boost::asio::serial_port serial(serialContext);
     try {
         serial.open(serialPortName);
         serial.set_option(boost::asio::serial_port_base::baud_rate(serialBaudRate));
         string msg("hello world\n");
+        cout << "sent: " << msg << endl;
         serial.write_some(boost::asio::buffer(msg, msg.size()));
 
         const int buf_size = 128;
         unsigned char data[buf_size];
         size_t len = serial.read_some(boost::asio::buffer(data));
 
-        cout << "received: " << endl;
+        cout << "received: ";
         for(unsigned i = 0; i < len; ++i){
             cout << data[i];
         }
@@ -194,8 +196,13 @@ void processFrame(const Mat &frame){
     Mat processed = frame.clone();
     prepFrame(processed);
 
-    processB(processed, frame);
-    processG(processed, frame);
+    //processB(processed, frame);
+    //processG(processed, frame);
+
+    thread t_b([&](){ processB(processed, frame); });
+    thread t_g([&](){ processG(processed, frame); });
+    t_b.join();
+    t_g.join();
 
     vector<Point> targets;
     findTargets(targets);
@@ -213,8 +220,6 @@ void findTargets(vector<Point> &targets){
         float deltaY = pt1.y - pt2.y;
         return (deltaX * deltaX) + (deltaY * deltaY);
     };
-
-    //cout << "distance from " << b_objects[0].center << " to " << g_objects[0].center << " is " << dist(b_objects[0].center, g_objects[0].center) << endl;
 
     struct Pair {
         Pair(int a, int b, float dist):

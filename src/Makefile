@@ -2,7 +2,7 @@
 CXX      = g++
 LDFLAGS  = $(shell pkg-config --libs opencv) -lpthread -lboost_system
 INCLUDE  = 
-CXXFLAGS = -std=gnu++17 -Wall -Wextra -Wfatal-errors -O3 -g
+CXXFLAGS = -std=gnu++17 -Wall -Wextra -Wfatal-errors -O3
 CXXFLAGS += $(INCLUDE)
 TARGET   = vision
 SRCFILES = main.cpp
