@@ -1,6 +1,6 @@
 //#define USE_WEBCAM
 //#define DEBUG
-#define DRAW_OVERLAY
+//#define DRAW_OVERLAY
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -275,150 +275,150 @@ void findTargets(vector<Point> &targets){
 #ifdef DEBUG
     imshow("targets", canvas);
 #endif
+}
+
+void drawDbg(const Mat &_orig){
+    Mat orig = _orig.clone();
+
+    /***************** B *****************/
+    for(unsigned i = 0; i < B::polygons.size(); ++i){
+        drawContours(orig, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
+        //circle(orig, B::centers[i], 3, Scalar(32,255,255));
     }
 
-    void drawDbg(const Mat &_orig){
-        Mat orig = _orig.clone();
+    Mat drawing = Mat::zeros(B::canny_output.size(), CV_8UC3);
 
-        /***************** B *****************/
-        for(unsigned i = 0; i < B::polygons.size(); ++i){
-            drawContours(orig, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
-            //circle(orig, B::centers[i], 3, Scalar(32,255,255));
-        }
-
-        Mat drawing = Mat::zeros(B::canny_output.size(), CV_8UC3);
-
-        for(unsigned i = 0; i < B::contours.size(); ++i){
-            drawContours(drawing, B::contours, i, Scalar(32,32,32), 2, 8, B::hierarchy, 0, Point());
-        }
-
-        for(unsigned i = 0; i < B::polygons.size(); ++i){
-            drawContours(drawing, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
-
-            //circle(drawing, polygons[i][0], 3, Scalar(32,255,255));
-            //circle(drawing, polygons[i][1], 3, Scalar(32,255,255));
-            //circle(drawing, polygons[i][2], 3, Scalar(32,255,255));
-            //circle(drawing, polygons[i][3], 3, Scalar(32,255,255));
-
-            drawContours(drawing, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
-            circle(drawing, B::centers[i], 3, Scalar(32,255,255));
-        }
-
-        //imshow("canny", canny_output);
-        imshow("bthreshold", B::thresh);
-        imshow("bdrawing", drawing);
-
-        /***************** G *****************/
-
-        for(unsigned i = 0; i < G::contours.size(); ++i){
-            drawContours(orig, G::contours, i, Scalar(32,255,255), 1, 8, G::hierarchy, 0, Point());
-            //circle(orig, G::centers[i], 3, Scalar(32,255,255));
-        }
-
-        drawing = Mat::zeros(G::canny_output.size(), CV_8UC3);
-
-        for(unsigned i = 0; i < G::contours.size(); ++i){
-            //draw stuff
-            drawContours(drawing, G::contours, i, Scalar(32,32,32), 2, 8, G::hierarchy, 0, Point());
-            drawContours(drawing, G::contours, i, Scalar(32,255,255), 1, 8, G::hierarchy, 0, Point());
-
-            circle(drawing, G::centers[i], 3, Scalar(32,255,255));
-        }
-
-        //imshow("canny", canny_output);
-        imshow("gthreshold", G::thresh);
-        imshow("gdrawing", drawing);
+    for(unsigned i = 0; i < B::contours.size(); ++i){
+        drawContours(drawing, B::contours, i, Scalar(32,32,32), 2, 8, B::hierarchy, 0, Point());
     }
 
-    void drawOverlay(const Mat &_orig, const vector<Point> &targets){
-        Mat orig = _orig.clone();
-        for(unsigned i = 0; i < B::polygons.size(); ++i){
-            drawContours(orig, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
-        }
-        for(unsigned i = 0; i < G::contours.size(); ++i){
-            drawContours(orig, G::contours, i, Scalar(32,255,255), 1, 8, G::hierarchy, 0, Point());
-        }
-        for(unsigned i = 0; i < targets.size(); ++i){
-            circle(orig, targets[i], 8, Scalar(0,0,0), -1);
-            circle(orig, targets[i], 3, Scalar(255,255,255), -1);
-            putText(orig, "TARGET", targets[i] + Point(5,-5), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
-        }
+    for(unsigned i = 0; i < B::polygons.size(); ++i){
+        drawContours(drawing, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
 
-        imshow("overlay", orig);
+        //circle(drawing, polygons[i][0], 3, Scalar(32,255,255));
+        //circle(drawing, polygons[i][1], 3, Scalar(32,255,255));
+        //circle(drawing, polygons[i][2], 3, Scalar(32,255,255));
+        //circle(drawing, polygons[i][3], 3, Scalar(32,255,255));
+
+        drawContours(drawing, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
+        circle(drawing, B::centers[i], 3, Scalar(32,255,255));
     }
 
-    void processB(const Mat &_frame){
-        using namespace B;
+    //imshow("canny", canny_output);
+    imshow("bthreshold", B::thresh);
+    imshow("bdrawing", drawing);
 
-        contours.clear();
-        hierarchy.clear();
-        polygons.clear();
-        boundRect.clear();
-        centers.clear();
-        //
+    /***************** G *****************/
 
-        thresh = _frame.clone();
-
-        prepFrame2(thresh, team);
-
-        //canny edge detection
-        Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
-
-        //find contours
-        findContours(canny_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-        //CV_RETR_EXTERNAL = get just external contours (no nesting)
-
-        polygons.resize(contours.size());
-        pAreas.resize(contours.size());
-        for(unsigned i = 0; i < contours.size(); ++i){
-            //get polygons from contours
-            approxPolyDP(contours[i], polygons[i], polyEpsilon, true);
-        }
-
-        //remove polygons that aren't squares
-        polygons.erase(std::remove_if(polygons.begin(), polygons.end(),
-                    [](const auto &poly){ return poly.size() != 4; }), polygons.end());
-
-        boundRect.reserve(polygons.size());
-        centers.reserve(polygons.size());
-
-        for(unsigned i = 0; i < polygons.size(); ++i){
-            //get bounding rectangle for each polygon
-            boundRect[i] = boundingRect(polygons[i]);
-            //find center of bounding rectangle
-            centers[i] = Point(boundRect[i].x + boundRect[i].width/2, boundRect[i].y + boundRect[i].height/2);
-            //find area of polygon
-            pAreas[i] = contourArea(polygons[i]);
-        }
+    for(unsigned i = 0; i < G::contours.size(); ++i){
+        drawContours(orig, G::contours, i, Scalar(32,255,255), 1, 8, G::hierarchy, 0, Point());
+        //circle(orig, G::centers[i], 3, Scalar(32,255,255));
     }
 
-    void processG(const Mat &_frame){
-        using namespace G;
+    drawing = Mat::zeros(G::canny_output.size(), CV_8UC3);
 
-        contours.clear();
-        hierarchy.clear();
-        boundRect.clear();
-        centers.clear();
-        //
+    for(unsigned i = 0; i < G::contours.size(); ++i){
+        //draw stuff
+        drawContours(drawing, G::contours, i, Scalar(32,32,32), 2, 8, G::hierarchy, 0, Point());
+        drawContours(drawing, G::contours, i, Scalar(32,255,255), 1, 8, G::hierarchy, 0, Point());
 
-        thresh = _frame.clone();
-
-        prepFrame2(thresh, GREEN);
-
-        //canny edge detection
-        Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
-
-        //find contours
-        findContours(canny_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-        //CV_RETR_EXTERNAL = get just external contours (no nesting)
-
-        boundRect.reserve(contours.size());
-        centers.reserve(contours.size());
-
-        for(unsigned i = 0; i < contours.size(); ++i){
-            //get bounding rectangle for each contour 
-            boundRect[i] = boundingRect(contours[i]);
-            //find center of bounding rectangle
-            centers[i] = Point(boundRect[i].x + boundRect[i].width/2, boundRect[i].y + boundRect[i].height/2);
-        }
+        circle(drawing, G::centers[i], 3, Scalar(32,255,255));
     }
+
+    //imshow("canny", canny_output);
+    imshow("gthreshold", G::thresh);
+    imshow("gdrawing", drawing);
+}
+
+void drawOverlay(const Mat &_orig, const vector<Point> &targets){
+    Mat orig = _orig.clone();
+    for(unsigned i = 0; i < B::polygons.size(); ++i){
+        drawContours(orig, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
+    }
+    for(unsigned i = 0; i < G::contours.size(); ++i){
+        drawContours(orig, G::contours, i, Scalar(32,255,255), 1, 8, G::hierarchy, 0, Point());
+    }
+    for(unsigned i = 0; i < targets.size(); ++i){
+        circle(orig, targets[i], 8, Scalar(0,0,0), -1);
+        circle(orig, targets[i], 3, Scalar(255,255,255), -1);
+        putText(orig, "TARGET", targets[i] + Point(5,-5), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
+    }
+
+    imshow("overlay", orig);
+}
+
+void processB(const Mat &_frame){
+    using namespace B;
+
+    contours.clear();
+    hierarchy.clear();
+    polygons.clear();
+    boundRect.clear();
+    centers.clear();
+    //
+
+    thresh = _frame.clone();
+
+    prepFrame2(thresh, team);
+
+    //canny edge detection
+    Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
+
+    //find contours
+    findContours(canny_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+    //CV_RETR_EXTERNAL = get just external contours (no nesting)
+
+    polygons.resize(contours.size());
+    pAreas.resize(contours.size());
+    for(unsigned i = 0; i < contours.size(); ++i){
+        //get polygons from contours
+        approxPolyDP(contours[i], polygons[i], polyEpsilon, true);
+    }
+
+    //remove polygons that aren't squares
+    polygons.erase(std::remove_if(polygons.begin(), polygons.end(),
+                [](const auto &poly){ return poly.size() != 4; }), polygons.end());
+
+    boundRect.reserve(polygons.size());
+    centers.reserve(polygons.size());
+
+    for(unsigned i = 0; i < polygons.size(); ++i){
+        //get bounding rectangle for each polygon
+        boundRect[i] = boundingRect(polygons[i]);
+        //find center of bounding rectangle
+        centers[i] = Point(boundRect[i].x + boundRect[i].width/2, boundRect[i].y + boundRect[i].height/2);
+        //find area of polygon
+        pAreas[i] = contourArea(polygons[i]);
+    }
+}
+
+void processG(const Mat &_frame){
+    using namespace G;
+
+    contours.clear();
+    hierarchy.clear();
+    boundRect.clear();
+    centers.clear();
+    //
+
+    thresh = _frame.clone();
+
+    prepFrame2(thresh, GREEN);
+
+    //canny edge detection
+    Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
+
+    //find contours
+    findContours(canny_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+    //CV_RETR_EXTERNAL = get just external contours (no nesting)
+
+    boundRect.reserve(contours.size());
+    centers.reserve(contours.size());
+
+    for(unsigned i = 0; i < contours.size(); ++i){
+        //get bounding rectangle for each contour 
+        boundRect[i] = boundingRect(contours[i]);
+        //find center of bounding rectangle
+        centers[i] = Point(boundRect[i].x + boundRect[i].width/2, boundRect[i].y + boundRect[i].height/2);
+    }
+}
