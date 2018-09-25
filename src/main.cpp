@@ -90,7 +90,8 @@ void findTargets(vector<Point> &targets);
 
 void processB(const Mat &_frame);
 void processG(const Mat &_frame);
-void draw(const Mat &_orig, const vector<Point> &targets);
+void drawDbg(const Mat &_orig);
+void drawOverlay(const Mat &_orig, const vector<Point> &targets);
 
 int main(int argc, char **argv){
     const auto &getTime = []{
@@ -202,8 +203,11 @@ void processFrame(const Mat &_frame){
     vector<Point> targets;
     findTargets(targets);
 
-#if defined(DEBUG) || defined(DRAW_OVERLAY)
-    draw(_frame, targets);
+#ifdef DEBUG
+    drawDbg(_frame);
+#endif
+#ifdef DRAW_OVERLAY
+    drawOverlay(_frame, targets);
 #endif
 }
 
@@ -273,9 +277,8 @@ void findTargets(vector<Point> &targets){
 #endif
     }
 
-    void draw(const Mat &_orig, const vector<Point> &targets){
+    void drawDbg(const Mat &_orig){
         Mat orig = _orig.clone();
-#ifdef DEBUG
 
         /***************** B *****************/
         for(unsigned i = 0; i < B::polygons.size(); ++i){
@@ -325,10 +328,10 @@ void findTargets(vector<Point> &targets){
         //imshow("canny", canny_output);
         imshow("gthreshold", G::thresh);
         imshow("gdrawing", drawing);
-#endif
-#ifdef DRAW_OVERLAY
-        /***************** TARGETS *****************/
+    }
 
+    void drawOverlay(const Mat &_orig, const vector<Point> &targets){
+        Mat orig = _orig.clone();
         for(unsigned i = 0; i < B::polygons.size(); ++i){
             drawContours(orig, B::polygons, i, Scalar(32,255,255), 1, 8, B::hierarchy, 0, Point());
         }
@@ -338,11 +341,10 @@ void findTargets(vector<Point> &targets){
         for(unsigned i = 0; i < targets.size(); ++i){
             circle(orig, targets[i], 8, Scalar(0,0,0), -1);
             circle(orig, targets[i], 3, Scalar(255,255,255), -1);
-            putText(orig, "TARGET", targets[i], FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
+            putText(orig, "TARGET", targets[i] + Point(5,-5), FONT_HERSHEY_PLAIN, 1, Scalar(255,255,255));
         }
 
         imshow("overlay", orig);
-#endif
     }
 
     void processB(const Mat &_frame){
