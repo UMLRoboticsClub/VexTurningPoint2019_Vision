@@ -1,6 +1,6 @@
-#arch: install "opencv" and "hdf5"
+#arch: install opencv, hdf5, and boost
 CXX      = g++
-LDFLAGS  = $(shell pkg-config --libs opencv)
+LDFLAGS  = $(shell pkg-config --libs opencv) -lpthread -lboost_system
 INCLUDE  = 
 CXXFLAGS = -std=gnu++17 -Wall -Wextra -Wfatal-errors -O3 -g
 CXXFLAGS += $(INCLUDE)

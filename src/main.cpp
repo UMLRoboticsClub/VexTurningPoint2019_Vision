@@ -4,6 +4,9 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/video/video.hpp>
+
+#include <boost/asio.hpp>
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -15,7 +18,6 @@ using std::endl;
 using std::string;
 using std::vector;
 using std::stringstream;
-using namespace std::chrono;
 using namespace cv;
 
 enum Color { BLUE, RED, GREEN };
@@ -24,6 +26,9 @@ Color team = BLUE;
 
 const int cam_index = 0;
 const char *test_image = "../img/field.png";
+boost::asio::io_context serialContext;
+const char *serialPortName = "/dev/ttyUSB0";
+const unsigned serialBaudRate = 115200;
 
 /* params to tune */
 
@@ -92,6 +97,7 @@ void drawAll(const Mat &_orig, const vector<Point> &targets);
 
 int main(int argc, char **argv){
     const auto &getTime = []{
+        using namespace std::chrono;
         return duration<double>(high_resolution_clock::now().time_since_epoch()).count();
     };
 
@@ -101,13 +107,35 @@ int main(int argc, char **argv){
         }
     }
 
-
 #ifdef USE_WEBCAM
     VideoCapture cap;
     if(!cap.open(cam_index)){
         cout << "cannot open video device\n";
         exit(1);
     }
+
+    boost::asio::serial_port serial(serialContext);
+    try {
+        serial.open(serialPortName);
+        serial.set_option(boost::asio::serial_port_base::baud_rate(serialBaudRate));
+        string msg("hello world\n");
+        serial.write_some(boost::asio::buffer(msg, msg.size()));
+
+        const int buf_size = 128;
+        unsigned char data[buf_size];
+        size_t len = serial.read_some(boost::asio::buffer(data));
+
+        cout << "received: " << endl;
+        for(unsigned i = 0; i < len; ++i){
+            cout << data[i];
+        }
+        cout << endl;
+
+    } catch(boost::system::system_error&){
+        cout << "unable to open serial device: " << serialPortName << endl;
+        exit(1);
+    }
+
     Mat frame;
 #else
     Mat frame = imread(test_image);
