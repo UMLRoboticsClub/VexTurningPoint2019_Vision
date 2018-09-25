@@ -27,7 +27,7 @@ enum Color { BLUE, RED, GREEN };
 Color team = BLUE;
 
 const int cam_index = 0;
-const char *test_image = "../img/field.png";
+const char *test_image = "../img/field2.png";
 const char *serialPortName = "/dev/ttyUSB0";
 const unsigned serialBaudRate = 115200;
 
@@ -50,7 +50,7 @@ Scalar bMin(120 - bSensitivity, 70, 70);
 Scalar bMax(120 + bSensitivity, 255, 255);
 
 //green
-const int gSensitivity = 20;
+const int gSensitivity = 28;
 Scalar gMin(60 - gSensitivity, 25, 100);
 Scalar gMax(60 + gSensitivity, 255, 255);
 
