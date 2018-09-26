@@ -33,7 +33,7 @@ struct Pair {
 
 /* settings */
 const int cam_index = 0;
-const char *test_image = "../img/field2.jpg";
+static string test_image = "../img/field2.jpg";
 const char *serialPortName = "/dev/ttyUSB0";
 const unsigned serialBaudRate = 115200;
 
@@ -100,7 +100,7 @@ void processFrame(Mat &_frame);
 //blur and convert colors
 void prepFrame(Mat &frame);
 //filter color and refine mask
-void prepFrame2(Mat &frame, Color color);
+void filterColor(Mat &frame, Color color);
 //finally determine where the flags are
 void findTargets(vector<Point> &targets);
 
@@ -119,10 +119,15 @@ int main(int argc, char **argv){
         return duration<double>(high_resolution_clock::now().time_since_epoch()).count();
     };
 
-    if(argc >= 2){
-        if(strcmp(argv[1], "r") == 0){
-            team = RED;
-        }
+    switch(argc){
+        case 3:
+            test_image = argv[2];
+            [[fallthrough]];
+        case 2:
+            if(strcmp(argv[1], "r") == 0){
+                team = RED;
+            }
+            break;
     }
 
 #ifdef USE_WEBCAM
@@ -193,7 +198,7 @@ void prepFrame(Mat &frame){
     cvtColor(frame, frame, COLOR_BGR2HSV);
 }
 
-void prepFrame2(Mat &frame, Color color){
+void filterColor(Mat &frame, Color color){
     //color thresholding
     switch(color){
         case BLUE:
@@ -201,10 +206,10 @@ void prepFrame2(Mat &frame, Color color){
             break;
         case RED:
             {
-                Mat mask1, mask2;
+                static Mat mask1, mask2;
                 inRange(frame, rMin1, rMax1, mask1);
                 inRange(frame, rMin2, rMax2, mask2);
-                frame = mask1 | mask2;
+                frame = mask1|mask2;
             }
             break;
         case GREEN:
@@ -269,7 +274,7 @@ void findTargets(vector<Point> &targets){
 
     std::sort(closest_pairs.begin(), closest_pairs.end(),
             [](Pair &a, Pair &b) -> bool {
-                return a.dist < b.dist;
+            return a.dist < b.dist;
             });
 
 #ifdef DEBUG
@@ -376,11 +381,10 @@ void processF(const Mat &_frame){
     hierarchy.clear();
     polygons.clear();
     centers.clear();
-    //
 
-    thresh = _frame.clone();
+    _frame.copyTo(thresh);
 
-    prepFrame2(thresh, team);
+    filterColor(thresh, team);
 
     //canny edge detection
     Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
@@ -419,11 +423,10 @@ void processG(const Mat &_frame){
     contours.clear();
     hierarchy.clear();
     centers.clear();
-    //
 
-    thresh = _frame.clone();
+    _frame.copyTo(thresh);
 
-    prepFrame2(thresh, GREEN);
+    filterColor(thresh, GREEN);
 
     //canny edge detection
     Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
