@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <thread>
 #include <typeinfo>
+#include <cmath>
 
 #include "crc.h"
 
@@ -180,7 +181,6 @@ int main(int argc, char **argv){
         exit(1);
     }
 
-
     Mat frame;
 #else
     Mat frame = imread(test_image);
@@ -209,56 +209,97 @@ int main(int argc, char **argv){
 }
 
 void sendTargets(boost::asio::serial_port &serial){
-    if(targets.size() == 0){ return; }
+    auto digits = [](int32_t num) -> size_t {
+        bool neg = false;
+        if(num < 0){
+            num *= -1; //make it pos
+            neg = true;
+        }
+        int len = 1;
 
+        if     (num < 10)          len =  1; 
+        else if(num < 100)         len =  2; 
+        else if(num < 1000)        len =  3; 
+        else if(num < 10000)       len =  4; 
+        else if(num < 100000)      len =  5; 
+        else if(num < 1000000)     len =  6; 
+        else if(num < 10000000)    len =  7; 
+        else if(num < 100000000)   len =  8; 
+        else if(num < 1000000000)  len =  9; 
+        else len = 10; 
+
+        if(neg){ return ++len; }
+        return len;
+    };
+
+    if(targets.size() == 0){ return; }
 
     ////assert that all points <= 9999,
     ////number of points <= 9999,
     ////clean up code and make more flexible with array sizes and such
     //'b' at beginning, 'e' at end of packet or something
 
-    const int dataBufSize = 1024;
-    char databuf[256];
+    const int dataBufSize = 256;
+    //absolute maximum should be 216 digits
+    char databuf[dataBufSize];
 
     int len = 0;
     for(unsigned i = 0; i < targets.size(); ++i){
         len += snprintf(databuf + len, dataBufSize - len, "%d %d ", targets[i].x, targets[i].y); //x[space]y[space]
+    }
+
+    uint32_t crc = crc32buf(databuf, len);
+
+    const int lenSize = digits(len);
+    const int crcSize = digits(crc);
+    const int dataOffset = lenSize + 1;
+    const char *header = "zz ";
+    const int headerSize = strlen(header);
+    const int bufSize = len + dataOffset + crcSize + headerSize + 1;
+    char *buf = new char[bufSize];
+
+    snprintf(buf, headerSize + 1, "%s", header);
+    //add length to beginning
+    snprintf(buf + headerSize, dataOffset + headerSize, "%d ", len);
+    //copy over databuf
+    memcpy(buf + lenSize + headerSize + 1, databuf, len);
+    //add crc to end
+    snprintf(buf + len + dataOffset + headerSize, crcSize + 2, "%d ", crc);
+
+#ifdef DEBUG
+    //all this tricky stuff
+    // databuf:[\|\|\databuf\|\|\]
+    //     buf:[_____\|\|\|databuf|\|\_____]
+    //     buf:[len__\|\|\|databuf|\|\_____]
+    //     buf:[len__\|\|\|databuf|\|\_crc_]
+
+    for(unsigned i = 0; i < targets.size(); ++i){
         cout << targets[i];
     }
-    cout << "\nlen:" << len << endl;
+    cout << endl;
 
+    cout << "crc:" << crc << endl;
+    cout << "crcsize:" << crcSize << endl;
+    cout << "\nlen:" << len << endl;
     cout << "databuf:";
     for(int i = 0; i < len; ++i){
         cout << '[' << databuf[i] << ']';
     }
     cout << endl;
 
-    const int dataOffset = 5;
-    const int bufSize = len + dataOffset;
-    char *buf = new char[bufSize];
-
-    // databuf:[\|\|\databuf\|\|\]
-    //     buf:[_____\|\|\|databuf|\|\]
-    //     buf:[len__\|\|\|databuf|\|\]
-
-    int lenSize = snprintf(buf, dataOffset, "%d ", len);
-    memcpy(buf + lenSize, databuf, len);
-
-    int bufLen = len + lenSize;
-
-    //memset(buf + lenSize, ' ', dataOffset - lenSize);
-
     cout << "\nbuf:";
-    for(int i = 0; i < bufLen; ++i){
+    for(int i = 0; i < bufSize; ++i){
         cout << '[' << buf[i] << ']';
     }
     cout << endl;
+#endif
 
     //send buf
     //serial.write_some(boost::asio::buffer(buf, len + dataOffset));
 
     //delete[] databuf;
     delete[] buf;
+
 }
 
 void prepFrame(Mat &frame){

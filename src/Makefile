@@ -6,7 +6,7 @@ LDFLAGS  = $(CVFLAGS) -lpthread -lboost_system
 CXXFLAGS = -std=c++17 -Wall -Wextra -Wfatal-errors -O3 -funroll-loops -march=native
 CXXFLAGS += $(INCLUDE)
 TARGET   = vision
-SRCFILES = main.cpp
+SRCFILES = main.cpp crc.cpp
 OBJECTS  = $(patsubst %.cpp, %.o, $(SRCFILES))
 
 ifeq ($(shell uname -p),aarch64)
