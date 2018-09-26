@@ -1,4 +1,5 @@
 //#define USE_WEBCAM
+//#define USE_SERIAL
 //#define DEBUG
 //#define DRAW_OVERLAY
 #include <opencv2/core/core.hpp>
@@ -140,6 +141,32 @@ int main(int argc, char **argv){
             break;
     }
 
+#ifdef USE_SERIAL
+    boost::asio::io_context serialContext;
+    boost::asio::serial_port serial(serialContext);
+    try {
+        serial.open(serialPortName);
+        serial.set_option(boost::asio::serial_port_base::baud_rate(serialBaudRate));
+        string msg("hello world\n");
+        cout << "sent: " << msg << endl;
+        serial.write_some(boost::asio::buffer(msg, msg.size()));
+
+        const int buf_size = 128;
+        unsigned char data[buf_size];
+        size_t len = serial.read_some(boost::asio::buffer(data));
+
+        cout << "received: ";
+        for(unsigned i = 0; i < len; ++i){
+            cout << data[i];
+        }
+        cout << endl;
+
+    } catch(boost::system::system_error&){
+        cout << "unable to open serial device: " << serialPortName << endl;
+        exit(1);
+    }
+#endif
+
 #ifdef USE_WEBCAM
     VideoCapture cap;
 
@@ -153,29 +180,6 @@ int main(int argc, char **argv){
         exit(1);
     }
 
-    /*boost::asio::io_context serialContext;
-      boost::asio::serial_port serial(serialContext);
-      try {
-      serial.open(serialPortName);
-      serial.set_option(boost::asio::serial_port_base::baud_rate(serialBaudRate));
-      string msg("hello world\n");
-      cout << "sent: " << msg << endl;
-      serial.write_some(boost::asio::buffer(msg, msg.size()));
-
-      const int buf_size = 128;
-      unsigned char data[buf_size];
-      size_t len = serial.read_some(boost::asio::buffer(data));
-
-      cout << "received: ";
-      for(unsigned i = 0; i < len; ++i){
-      cout << data[i];
-      }
-      cout << endl;
-
-      } catch(boost::system::system_error&){
-      cout << "unable to open serial device: " << serialPortName << endl;
-      exit(1);
-      }*/
 
     Mat frame;
 #else
@@ -194,8 +198,10 @@ int main(int argc, char **argv){
         const double delta = getTime() - before;
         cout << "Time elapsed: " << delta * 1000.f << " ms" << endl;
 
-#ifdef USE_WEBCAM
+#ifdef USE_SERIAL
         sendTargets(serial);
+#endif
+#ifdef USE_WEBCAM
     }
 #else
     waitKey(0);
@@ -203,34 +209,56 @@ int main(int argc, char **argv){
 }
 
 void sendTargets(boost::asio::serial_port &serial){
-    const int spacesPerPoint = 2;
-    //points within 1920x1080
-    const int maxDigitSize = 4;
-    int bufSize = targets.size() * (maxDigitSize + spacesPerPoint);
-    char *databuf = new char(bufSize);
+    if(targets.size() == 0){ return; }
+
+
+    ////assert that all points <= 9999,
+    ////number of points <= 9999,
+    ////clean up code and make more flexible with array sizes and such
+    //'b' at beginning, 'e' at end of packet or something
+
+    const int dataBufSize = 1024;
+    char databuf[256];
 
     int len = 0;
     for(unsigned i = 0; i < targets.size(); ++i){
-        len += snprintf(databuf, bufSize - len, "%d %d ", targets[i].x, targets[i].y); //x[space]y[space]
+        len += snprintf(databuf + len, dataBufSize - len, "%d %d ", targets[i].x, targets[i].y); //x[space]y[space]
+        cout << targets[i];
     }
+    cout << "\nlen:" << len << endl;
 
-    const int dataOffset = 11 + 1;
-    char *buf = new char(len + dataOffset);
+    cout << "databuf:";
+    for(int i = 0; i < len; ++i){
+        cout << '[' << databuf[i] << ']';
+    }
+    cout << endl;
+
+    const int dataOffset = 5;
+    const int bufSize = len + dataOffset;
+    char *buf = new char[bufSize];
 
     // databuf:[\|\|\databuf\|\|\]
     //     buf:[_____\|\|\|databuf|\|\]
     //     buf:[len__\|\|\|databuf|\|\]
 
-    memcpy(buf + dataOffset, databuf, len);
-    memset(buf, ' ', dataOffset);
-    snprintf(buf, dataOffset, "%d ", len);
+    int lenSize = snprintf(buf, dataOffset, "%d ", len);
+    memcpy(buf + lenSize, databuf, len);
+
+    int bufLen = len + lenSize;
+
+    //memset(buf + lenSize, ' ', dataOffset - lenSize);
+
+    cout << "\nbuf:";
+    for(int i = 0; i < bufLen; ++i){
+        cout << '[' << buf[i] << ']';
+    }
+    cout << endl;
 
     //send buf
+    //serial.write_some(boost::asio::buffer(buf, len + dataOffset));
 
-    cout << "sending:" << buf << endl;
-    serial.write_some(boost::asio::buffer(buf, len + dataOffset));
-
-    delete databuf;
+    //delete[] databuf;
+    delete[] buf;
 }
 
 void prepFrame(Mat &frame){
