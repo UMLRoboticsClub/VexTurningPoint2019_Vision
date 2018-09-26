@@ -14,6 +14,9 @@
 #include <chrono>
 #include <algorithm>
 #include <thread>
+#include <typeinfo>
+
+#include "crc.h"
 
 using std::cout;
 using std::endl;
@@ -25,10 +28,10 @@ using namespace cv;
 enum Color { BLUE, RED, GREEN };
 
 struct Pair {
-    Pair(int a, int b, float dist):
+    Pair(int a, int b, int dist):
         a(a), b(b), dist(dist){}
     int a, b;
-    float dist;
+    int dist;
 };
 
 /* settings */
@@ -89,6 +92,10 @@ namespace G {
     static Mat canny_output;
 };
 
+namespace R {
+    static Mat mask1, mask2;
+}
+
 //globals
 Color team = BLUE;
 static vector<Pair> closest_pairs;
@@ -112,6 +119,9 @@ void processG(const Mat &_frame);
 void drawDbg(const Mat &_orig);
 //draw original image overlayed with found targets
 void drawOverlay(const Mat &_orig, const vector<Point> &targets);
+
+//send target data to v5
+void sendTargets(boost::asio::serial_port &serial);
 
 int main(int argc, char **argv){
     const auto &getTime = []{
@@ -185,10 +195,42 @@ int main(int argc, char **argv){
         cout << "Time elapsed: " << delta * 1000.f << " ms" << endl;
 
 #ifdef USE_WEBCAM
+        sendTargets(serial);
     }
 #else
     waitKey(0);
 #endif
+}
+
+void sendTargets(boost::asio::serial_port &serial){
+    const int spacesPerPoint = 2;
+    //points within 1920x1080
+    const int maxDigitSize = 4;
+    int bufSize = targets.size() * (maxDigitSize + spacesPerPoint);
+    char *databuf = new char(bufSize);
+
+    int len = 0;
+    for(unsigned i = 0; i < targets.size(); ++i){
+        len += snprintf(databuf, bufSize - len, "%d %d ", targets[i].x, targets[i].y); //x[space]y[space]
+    }
+
+    const int dataOffset = 11 + 1;
+    char *buf = new char(len + dataOffset);
+
+    // databuf:[\|\|\databuf\|\|\]
+    //     buf:[_____\|\|\|databuf|\|\]
+    //     buf:[len__\|\|\|databuf|\|\]
+
+    memcpy(buf + dataOffset, databuf, len);
+    memset(buf, ' ', dataOffset);
+    snprintf(buf, dataOffset, "%d ", len);
+
+    //send buf
+
+    cout << "sending:" << buf << endl;
+    serial.write_some(boost::asio::buffer(buf, len + dataOffset));
+
+    delete databuf;
 }
 
 void prepFrame(Mat &frame){
@@ -206,7 +248,7 @@ void filterColor(Mat &frame, Color color){
             break;
         case RED:
             {
-                static Mat mask1, mask2;
+                using namespace R;
                 inRange(frame, rMin1, rMax1, mask1);
                 inRange(frame, rMin2, rMax2, mask2);
                 frame = mask1|mask2;
@@ -233,11 +275,13 @@ void processFrame(Mat &frame){
 
     thread t_b([&](){ processF(frame); });
     thread t_g([&](){ processG(frame); });
-    t_b.join();
-    t_g.join();
 
     targets.clear();
     targets.reserve(F::polygons.size());
+
+    t_b.join();
+    t_g.join();
+
     findTargets(targets);
     cout << "found " << targets.size() << " targets" << endl;
 
@@ -250,9 +294,9 @@ void processFrame(Mat &frame){
 }
 
 void findTargets(vector<Point> &targets){
-    auto dist = [](const Point& pt1, const Point& pt2) -> float {
-        const float deltaX = pt1.x - pt2.x;
-        const float deltaY = pt1.y - pt2.y;
+    auto dist = [](const Point& pt1, const Point& pt2) -> int {
+        const int deltaX = pt1.x - pt2.x;
+        const int deltaY = pt1.y - pt2.y;
         return (deltaX * deltaX) + (deltaY * deltaY);
     };
 
@@ -260,10 +304,10 @@ void findTargets(vector<Point> &targets){
     closest_pairs.reserve(F::polygons.size());
 
     for(unsigned i = 0; i < F::polygons.size(); ++i){
-        float smallestVal = 1E10;
+        int smallestVal = INT_MAX;
         int smallestObjIndex = 0;
         for(unsigned j = 0; j < G::contours.size(); ++j){
-            float val = dist(F::centers[i], G::centers[j]);
+            int val = dist(F::centers[i], G::centers[j]);
             if(val < smallestVal){
                 smallestVal = val;
                 smallestObjIndex = j;
