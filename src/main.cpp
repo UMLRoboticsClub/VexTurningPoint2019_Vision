@@ -52,22 +52,22 @@ const double polyEpsilon = 14;
 
 //blue
 const int bSensitivity = 20;
-Scalar bMin(120 - bSensitivity, 70, 70);
-Scalar bMax(120 + bSensitivity, 255, 255);
+const static Scalar bMin(120 - bSensitivity, 70, 70);
+const static Scalar bMax(120 + bSensitivity, 255, 255);
 
 //green
 const int gSensitivity = 28;
-Scalar gMin(60 - gSensitivity, 25, 100);
-Scalar gMax(60 + gSensitivity, 255, 255);
+const static Scalar gMin(60 - gSensitivity, 25, 100);
+const static Scalar gMax(60 + gSensitivity, 255, 255);
 
 //red
 //this has 2 ranges because red 
 //wraps around the HSV spectrum
 const int rSensitivity = 20;
-Scalar rMin1(0, 70, 70);
-Scalar rMax1(rSensitivity/2, 255, 255);
-Scalar rMin2(180-rSensitivity/2, 70, 70);
-Scalar rMax2(180, 255, 255);
+const static Scalar rMin1(0, 70, 70);
+const static Scalar rMax1(rSensitivity/2, 255, 255);
+const static Scalar rMin2(180-rSensitivity/2, 70, 70);
+const static Scalar rMax2(180, 255, 255);
 
 namespace F {
     static vector<vector<Point>> contours;
@@ -93,10 +93,10 @@ namespace G {
 Color team = BLUE;
 static vector<Pair> closest_pairs;
 static vector<Point> targets;
-
+static Size frameSize;
 
 //extract all info from frame
-void processFrame(const Mat &_frame);
+void processFrame(Mat &_frame);
 //blur and convert colors
 void prepFrame(Mat &frame);
 //filter color and refine mask
@@ -165,8 +165,11 @@ int main(int argc, char **argv){
     Mat frame;
 #else
     Mat frame = imread(test_image);
+    frameSize = frame.size();
 #endif
 #ifdef USE_WEBCAM
+    cap >> frame;
+    frameSize = frame.size();
     cout << "\nHit 'q' to exit...\n";
     while(waitKey(1) != 'q'){
         cap >> frame;
@@ -214,8 +217,10 @@ void prepFrame2(Mat &frame, Color color){
     dilate(frame, frame, Mat(), Point(-1, -1), 2);
 }
 
-void processFrame(const Mat &_frame){
-    Mat frame = _frame.clone();
+void processFrame(Mat &frame){
+#if defined(DEBUG) || defined(DRAW_OVERLAY)
+    Mat _frame = frame.clone();
+#endif
     prepFrame(frame);
 
     //processF(frame);
@@ -268,7 +273,7 @@ void findTargets(vector<Point> &targets){
             });
 
 #ifdef DEBUG
-    Mat canvas = Mat::zeros(F::canny_output.size(), CV_8UC3);
+    Mat canvas = Mat::zeros(frameSize, CV_8UC3);
 #endif
     for(unsigned i = 0; i < closest_pairs.size(); ++i){
         const float ratio = closest_pairs[i].dist / F::pAreas[closest_pairs[i].a];
@@ -303,7 +308,7 @@ void drawDbg(const Mat &_orig){
         //circle(orig, F::centers[i], 3, Scalar(32,255,255));
     }
 
-    Mat drawing = Mat::zeros(F::canny_output.size(), CV_8UC3);
+    Mat drawing = Mat::zeros(frameSize, CV_8UC3);
 
     for(unsigned i = 0; i < F::contours.size(); ++i){
         drawContours(drawing, F::contours, i, Scalar(32,32,32), 2, 8, F::hierarchy, 0, Point());
@@ -332,7 +337,7 @@ void drawDbg(const Mat &_orig){
         //circle(orig, G::centers[i], 3, Scalar(32,255,255));
     }
 
-    drawing = Mat::zeros(G::canny_output.size(), CV_8UC3);
+    drawing = Mat::zeros(frameSize, CV_8UC3);
 
     for(unsigned i = 0; i < G::contours.size(); ++i){
         //draw stuff
