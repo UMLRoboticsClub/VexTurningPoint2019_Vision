@@ -24,7 +24,12 @@ using namespace cv;
 
 enum Color { BLUE, RED, GREEN };
 
-Color team = BLUE;
+struct Pair {
+    Pair(int a, int b, float dist):
+        a(a), b(b), dist(dist){}
+    int a, b;
+    float dist;
+};
 
 /* settings */
 const int cam_index = 0;
@@ -35,8 +40,8 @@ const unsigned serialBaudRate = 115200;
 /* params to tune */
 
 //ratio of dist to green/
-const double minRatio = 0.3;
-const double maxRatio = 0.65;
+const float minRatio = 0.3;
+const float maxRatio = 0.65;
 //canny params
 const int edgeThresh = 100;
 const int maxEdgeThresh = 200;
@@ -65,26 +70,30 @@ Scalar rMin2(180-rSensitivity/2, 70, 70);
 Scalar rMax2(180, 255, 255);
 
 namespace F {
-    vector<vector<Point>> contours;
-    vector<Vec4i> hierarchy;
-    vector<vector<Point>> polygons;
-    vector<double> pAreas;
-    vector<Rect> boundRect;
-    vector<Point> centers;
+    static vector<vector<Point>> contours;
+    static vector<Vec4i> hierarchy;
+    static vector<vector<Point>> polygons;
+    static vector<double> pAreas;
+    static vector<Point> centers;
 
-    Mat thresh;
-    Mat canny_output;
+    static Mat thresh;
+    static Mat canny_output;
 };
 
 namespace G {
-    vector<vector<Point>> contours;
-    vector<Vec4i> hierarchy;
-    vector<Rect> boundRect;
-    vector<Point> centers;
+    static vector<vector<Point>> contours;
+    static vector<Vec4i> hierarchy;
+    static vector<Point> centers;
 
-    Mat thresh;
-    Mat canny_output;
+    static Mat thresh;
+    static Mat canny_output;
 };
+
+//globals
+Color team = BLUE;
+static vector<Pair> closest_pairs;
+static vector<Point> targets;
+
 
 //extract all info from frame
 void processFrame(const Mat &_frame);
@@ -118,34 +127,40 @@ int main(int argc, char **argv){
 
 #ifdef USE_WEBCAM
     VideoCapture cap;
+
+    //for c930e
+    //Capture.set(CV_CAP_PROP_FOURCC, CV_FOURCC('M','J','P','G'));
+    //Capture.set(CV_CAP_PROP_FRAME_WIDTH, 1920);
+    //Capture.set(CV_CAP_PROP_FRAME_HEIGHT, 1080);
+
     if(!cap.open(cam_index)){
         cout << "cannot open video device\n";
         exit(1);
     }
 
     /*boost::asio::io_context serialContext;
-    boost::asio::serial_port serial(serialContext);
-    try {
-        serial.open(serialPortName);
-        serial.set_option(boost::asio::serial_port_base::baud_rate(serialBaudRate));
-        string msg("hello world\n");
-        cout << "sent: " << msg << endl;
-        serial.write_some(boost::asio::buffer(msg, msg.size()));
+      boost::asio::serial_port serial(serialContext);
+      try {
+      serial.open(serialPortName);
+      serial.set_option(boost::asio::serial_port_base::baud_rate(serialBaudRate));
+      string msg("hello world\n");
+      cout << "sent: " << msg << endl;
+      serial.write_some(boost::asio::buffer(msg, msg.size()));
 
-        const int buf_size = 128;
-        unsigned char data[buf_size];
-        size_t len = serial.read_some(boost::asio::buffer(data));
+      const int buf_size = 128;
+      unsigned char data[buf_size];
+      size_t len = serial.read_some(boost::asio::buffer(data));
 
-        cout << "received: ";
-        for(unsigned i = 0; i < len; ++i){
-            cout << data[i];
-        }
-        cout << endl;
+      cout << "received: ";
+      for(unsigned i = 0; i < len; ++i){
+      cout << data[i];
+      }
+      cout << endl;
 
-    } catch(boost::system::system_error&){
-        cout << "unable to open serial device: " << serialPortName << endl;
-        exit(1);
-    }*/
+      } catch(boost::system::system_error&){
+      cout << "unable to open serial device: " << serialPortName << endl;
+      exit(1);
+      }*/
 
     Mat frame;
 #else
@@ -211,7 +226,8 @@ void processFrame(const Mat &_frame){
     t_b.join();
     t_g.join();
 
-    vector<Point> targets;
+    targets.clear();
+    targets.reserve(F::polygons.size());
     findTargets(targets);
     cout << "found " << targets.size() << " targets" << endl;
 
@@ -230,14 +246,7 @@ void findTargets(vector<Point> &targets){
         return (deltaX * deltaX) + (deltaY * deltaY);
     };
 
-    struct Pair {
-        Pair(int a, int b, float dist):
-            a(a), b(b), dist(dist){}
-        int a, b;
-        float dist;
-    };
-
-    vector<Pair> closest_pairs;
+    closest_pairs.clear();
     closest_pairs.reserve(F::polygons.size());
 
     for(unsigned i = 0; i < F::polygons.size(); ++i){
@@ -255,14 +264,14 @@ void findTargets(vector<Point> &targets){
 
     std::sort(closest_pairs.begin(), closest_pairs.end(),
             [](Pair &a, Pair &b) -> bool {
-            return a.dist < b.dist;
+                return a.dist < b.dist;
             });
 
 #ifdef DEBUG
     Mat canvas = Mat::zeros(F::canny_output.size(), CV_8UC3);
 #endif
     for(unsigned i = 0; i < closest_pairs.size(); ++i){
-        double ratio = closest_pairs[i].dist / F::pAreas[closest_pairs[i].a];
+        const float ratio = closest_pairs[i].dist / F::pAreas[closest_pairs[i].a];
         //cout << "ratio:" << ratio << endl;
 
         if(ratio > minRatio && ratio < maxRatio){
@@ -361,7 +370,6 @@ void processF(const Mat &_frame){
     contours.clear();
     hierarchy.clear();
     polygons.clear();
-    boundRect.clear();
     centers.clear();
     //
 
@@ -373,11 +381,10 @@ void processF(const Mat &_frame){
     Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
 
     //find contours
-    findContours(canny_output, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
     //CV_RETR_EXTERNAL = get just external contours (no nesting)
+    findContours(canny_output, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
 
     polygons.resize(contours.size());
-    pAreas.resize(contours.size());
     for(unsigned i = 0; i < contours.size(); ++i){
         //get polygons from contours
         approxPolyDP(contours[i], polygons[i], polyEpsilon, true);
@@ -387,14 +394,15 @@ void processF(const Mat &_frame){
     polygons.erase(std::remove_if(polygons.begin(), polygons.end(),
                 [](const auto &poly){ return poly.size() != 4; }), polygons.end());
 
-    boundRect.reserve(polygons.size());
     centers.reserve(polygons.size());
+    pAreas.resize(polygons.size());
 
+    Rect boundRect;
     for(unsigned i = 0; i < polygons.size(); ++i){
         //get bounding rectangle for each polygon
-        boundRect[i] = boundingRect(polygons[i]);
+        boundRect = boundingRect(polygons[i]);
         //find center of bounding rectangle
-        centers[i] = Point(boundRect[i].x + boundRect[i].width/2, boundRect[i].y + boundRect[i].height/2);
+        centers.emplace_back(boundRect.x + boundRect.width/2, boundRect.y + boundRect.height/2);
         //find area of polygon
         pAreas[i] = contourArea(polygons[i]);
     }
@@ -405,7 +413,6 @@ void processG(const Mat &_frame){
 
     contours.clear();
     hierarchy.clear();
-    boundRect.clear();
     centers.clear();
     //
 
@@ -417,16 +424,16 @@ void processG(const Mat &_frame){
     Canny(thresh, canny_output, edgeThresh, maxEdgeThresh, 3);
 
     //find contours
-    findContours(canny_output, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
     //CV_RETR_EXTERNAL = get just external contours (no nesting)
+    findContours(canny_output, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
 
-    boundRect.reserve(contours.size());
     centers.reserve(contours.size());
 
+    Rect boundRect;
     for(unsigned i = 0; i < contours.size(); ++i){
         //get bounding rectangle for each contour 
-        boundRect[i] = boundingRect(contours[i]);
+        boundRect = boundingRect(contours[i]);
         //find center of bounding rectangle
-        centers[i] = Point(boundRect[i].x + boundRect[i].width/2, boundRect[i].y + boundRect[i].height/2);
+        centers.emplace_back(boundRect.x + boundRect.width/2, boundRect.y + boundRect.height/2);
     }
 }
