@@ -15,6 +15,8 @@ using std::endl;
 using std::string;
 using std::vector;
 
+const char *header = "zz ";
+
 typedef std::pair<int, int> Point;
 
 void parseInput(string &input, vector<Point> &targets){
@@ -60,9 +62,11 @@ void parseInput(string &input, vector<Point> &targets){
     const int sizeSize = end - afterHeader;
     for(int i = 0; i < size; ++i){
         //get the rest of the numbers
+        //int num = strtol(end, &end, 10);
+        //targets.emplace_back((int)strtol(end, &end, 10), num);
         targets.emplace_back((int)strtol(end, &end, 10), (int)strtol(end, &end, 10));
 #ifdef DEBUG
-        cout << "point:" << '[' << targets.back().first << "," << targets.back().second << ']' << endl;
+        cout << "point:" << '[' << targets.back().second << "," << targets.back().first << ']' << endl;
 #endif
     }
 
@@ -102,16 +106,23 @@ void parseInput(string &input, vector<Point> &targets){
 void doThing(vector<Point> &targets){
     //targets.size();
     for(auto &a : targets){
-        cout << "point:" << '[' << a.first << "," << a.second << ']' << endl;
+        cout << "point:" << '[' << a.second << "," << a.first << ']' << endl;
     }
 }
 
 int main(){
+    int headerLen = strlen(header);
+
     string input;
+    vector<Point> targets;
     while(cin){
         std::getline(cin, input);
-        if(input == "") continue; //skip empty lines
-        vector<Point> targets;
+        if(strncmp(input.c_str(), header, headerLen) == 0){
+            cout << input.c_str() << endl;
+        } else {
+            puts(input.c_str());
+        }
+        targets.clear();
         parseInput(input, targets);
         doThing(targets);
     }
