@@ -18,16 +18,28 @@ char *serialPortName;
 unsigned serialBaudRate;
 const char *header = "zz ";
 
-int main(int argc, char **argv){
+void output(){
+    int headerLen = strlen(header);
 
-    if(argc < 3){
-        cout << "missing arguments" << endl;
-        cout << "suggested usage: ./serial /dev/ttyUSB0 115200" << endl;
-        exit(1);
+    string input;
+    while(cin){
+        std::getline(cin, input); 
+        if(strncmp(input.c_str(), header, headerLen) == 0){
+            serialWrite(input.c_str(), input.size());
+        } else {
+            puts(input.c_str());
+        }
     }
 
-    serialPortName = argv[1];
-    serialBaudRate = strtol(argv[2], NULL, 10);
+    closeSerial();
+    puts("EOF reached, bye");
+}
+
+void input(){
+    //does nothing
+}
+
+void setup(){
     cout << "using port " << serialPortName << " at " << serialBaudRate << " baud" << endl;
 
     //B115200, B230400, B9600, B19200, B38400, B57600, B1200, B2400, B4800
@@ -41,17 +53,24 @@ int main(int argc, char **argv){
     }
     
     openSerial(serialPortName, serialBaudRate);
+}
 
-    int headerLen = strlen(header);
+int main(int argc, char **argv){
+    if(argc < 3){
+        cout << "missing arguments" << endl;
+        cout << "suggested usage: ./serial /dev/ttyUSB0 115200" << endl;
+        exit(1);
+    }
 
-    string input;
-    while(cin){
-        std::getline(cin, input); 
-        if(strncmp(input.c_str(), header, headerLen) == 0){
-            serialWrite(input.c_str(), input.size());
-        } else {
-            puts(input.c_str());
-        }
+    serialPortName = argv[1];
+    serialBaudRate = strtol(argv[2], NULL, 10);
+
+    setup();
+
+    if(argc == 4 && strcmp(argv[3], "i") == 0){
+        input();
+    } else {
+        output();
     }
 
     closeSerial();

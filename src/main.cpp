@@ -1,6 +1,6 @@
 #define USE_WEBCAM
 //#define DEBUG
-#define DEBUG_OUTPUT
+//#define DEBUG_OUTPUT
 //#define DRAW_OVERLAY
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -170,6 +170,8 @@ int main(int argc, char **argv){
 
         sendTargets();
 
+        cout << endl;
+
 #ifdef USE_WEBCAM
     }
 #else
@@ -245,7 +247,7 @@ void sendTargets(){
     cout << endl;
 
     cout << "crc:" << crc << endl;
-    cout << "crcsize:" << crcSize << endl;
+    cout << "crcsize:" << digits(crc) << endl;
     cout << "\nlen:" << len << endl;
     cout << "databuf:";
     for(int i = 0; i < len; ++i){
@@ -474,6 +476,8 @@ void processF(const Mat &_frame){
     //CV_RETR_EXTERNAL = get just external contours (no nesting)
     findContours(canny_output, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
 
+    if(contours.size() == 0) return;
+
     polygons.resize(contours.size());
     for(unsigned i = 0; i < contours.size(); ++i){
         //get polygons from contours
@@ -483,6 +487,8 @@ void processF(const Mat &_frame){
     //remove polygons that aren't squares
     polygons.erase(std::remove_if(polygons.begin(), polygons.end(),
                 [](const auto &poly){ return poly.size() != 4; }), polygons.end());
+
+    if(polygons.size() == 0) return;
 
     centers.reserve(polygons.size());
     pAreas.resize(polygons.size());
@@ -515,6 +521,8 @@ void processG(const Mat &_frame){
     //find contours
     //CV_RETR_EXTERNAL = get just external contours (no nesting)
     findContours(canny_output, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE, Point(0, 0));
+
+    if(contours.size() == 0) return;
 
     centers.reserve(contours.size());
 
