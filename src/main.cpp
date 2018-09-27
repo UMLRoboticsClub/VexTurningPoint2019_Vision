@@ -1,5 +1,6 @@
 //#define USE_WEBCAM
-//#define USE_SERIAL
+#define USE_SERIAL
+#define SERIAL_DEBUG
 //#define DEBUG
 //#define DRAW_OVERLAY
 #include <opencv2/core/core.hpp>
@@ -143,6 +144,7 @@ int main(int argc, char **argv){
     }
 
 #ifdef USE_SERIAL
+    /*
     boost::asio::io_context serialContext;
     boost::asio::serial_port serial(serialContext);
     try {
@@ -166,6 +168,7 @@ int main(int argc, char **argv){
         cout << "unable to open serial device: " << serialPortName << endl;
         exit(1);
     }
+    */
 #endif
 
 #ifdef USE_WEBCAM
@@ -199,6 +202,9 @@ int main(int argc, char **argv){
         cout << "Time elapsed: " << delta * 1000.f << " ms" << endl;
 
 #ifdef USE_SERIAL
+        boost::asio::io_context serialContext;
+        boost::asio::serial_port serial(serialContext);
+        //
         sendTargets(serial);
 #endif
 #ifdef USE_WEBCAM
@@ -217,6 +223,8 @@ void sendTargets(boost::asio::serial_port &serial){
         }
         int len = 1;
 
+        //this looks really dumb, but it's pretty efficient and simple
+        //todo improvement: binary search the length
         if     (num < 10)          len =  1; 
         else if(num < 100)         len =  2; 
         else if(num < 1000)        len =  3; 
@@ -248,25 +256,25 @@ void sendTargets(boost::asio::serial_port &serial){
         len += snprintf(databuf + len, dataBufSize - len, "%d %d ", targets[i].x, targets[i].y); //x[space]y[space]
     }
 
-    uint32_t crc = crc32buf(databuf, len);
+    uint32_t crc = crc32buf(databuf, len - 1);
 
-    const int lenSize = digits(len);
+    const int sizeSize = digits(targets.size());
     const int crcSize = digits(crc);
-    const int dataOffset = lenSize + 1;
+    const int dataOffset = sizeSize + 1;
     const char *header = "zz ";
     const int headerSize = strlen(header);
-    const int bufSize = len + dataOffset + crcSize + headerSize + 1;
+    const int bufSize = len + dataOffset + crcSize + headerSize;
     char *buf = new char[bufSize];
 
     snprintf(buf, headerSize + 1, "%s", header);
     //add length to beginning
-    snprintf(buf + headerSize, dataOffset + headerSize, "%d ", len);
+    snprintf(buf + headerSize, dataOffset + headerSize, "%d ", (int)targets.size());
     //copy over databuf
-    memcpy(buf + lenSize + headerSize + 1, databuf, len);
+    memcpy(buf + sizeSize + headerSize + 1, databuf, len);
     //add crc to end
-    snprintf(buf + len + dataOffset + headerSize, crcSize + 2, "%d ", crc);
+    snprintf(buf + len + dataOffset + headerSize, crcSize + 2, "%u\n", crc);
 
-#ifdef DEBUG
+#ifdef SERIAL_DEBUG
     //all this tricky stuff
     // databuf:[\|\|\databuf\|\|\]
     //     buf:[_____\|\|\|databuf|\|\_____]
@@ -292,6 +300,7 @@ void sendTargets(boost::asio::serial_port &serial){
         cout << '[' << buf[i] << ']';
     }
     cout << endl;
+    cout << buf << endl;
 #endif
 
     //send buf
