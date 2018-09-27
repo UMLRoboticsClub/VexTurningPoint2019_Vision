@@ -49,8 +49,11 @@ int main(int argc, char **argv){
         std::getline(cin, input); 
         if(strncmp(input.c_str(), header, headerLen) == 0){
             serialWrite(input.c_str(), input.size());
+        } else {
+            puts(input.c_str());
         }
     }
 
     closeSerial();
+    puts("EOF reached, bye");
 }

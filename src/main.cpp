@@ -1,5 +1,6 @@
-//#define USE_WEBCAM
+#define USE_WEBCAM
 //#define DEBUG
+#define DEBUG_OUTPUT
 //#define DRAW_OVERLAY
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -215,23 +216,23 @@ void sendTargets(){
 
     uint32_t crc = crc32buf(databuf, len - 1);
 
-    const int sizeSize = digits(targets.size());
-    const int crcSize = digits(crc);
-    const int dataOffset = sizeSize + 1;
+    const int sizeSize = digits(targets.size()) + 1;
+    const int crcSize = digits(crc) + 1;
     const char *header = "zz ";
     const int headerSize = strlen(header);
-    const int bufSize = len + dataOffset + crcSize + headerSize;
+    const int bufSize = len + sizeSize + crcSize + headerSize;
     char *buf = new char[bufSize];
-
+    
     snprintf(buf, headerSize + 1, "%s", header);
     //add length to beginning
-    snprintf(buf + headerSize, dataOffset + headerSize, "%d ", (int)targets.size());
+    snprintf(buf + headerSize, sizeSize + headerSize, "%d ", (int)targets.size());
     //copy over databuf
-    memcpy(buf + sizeSize + headerSize + 1, databuf, len);
+    memcpy(buf + sizeSize + headerSize, databuf, len);
     //add crc to end
-    snprintf(buf + len + dataOffset + headerSize, crcSize + 2, "%u\n", crc);
+    snprintf(buf + len + sizeSize + headerSize, crcSize, "%u", crc);
+    buf[bufSize - 1] = '\n';
 
-#ifdef DEBUG 
+#ifdef DEBUG_OUTPUT
     //all this tricky stuff
     // databuf:[\|\|\databuf\|\|\]
     //     buf:[_____\|\|\|databuf|\|\_____]
@@ -257,15 +258,16 @@ void sendTargets(){
         cout << '[' << buf[i] << ']';
     }
     cout << endl;
-    cout << buf << endl;
 #endif
 
     for(int i = 0; i < bufSize; ++i){
         putchar(buf[i]);
     }
+#ifdef DEBUG_OUTPUT
+    cout << endl << endl;
+#endif
 
     delete[] buf;
-
 }
 
 void prepFrame(Mat &frame){
