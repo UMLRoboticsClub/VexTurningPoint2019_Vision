@@ -1,14 +1,10 @@
 //#define USE_WEBCAM
-#define USE_SERIAL
-#define SERIAL_DEBUG
 //#define DEBUG
 //#define DRAW_OVERLAY
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/video/video.hpp>
-
-#include <boost/asio.hpp>
 
 #include <iostream>
 #include <vector>
@@ -40,8 +36,6 @@ struct Pair {
 /* settings */
 const int cam_index = 0;
 static string test_image = "../img/field2.jpg";
-const char *serialPortName = "/dev/ttyUSB0";
-const unsigned serialBaudRate = 115200;
 
 /* params to tune */
 
@@ -124,7 +118,7 @@ void drawDbg(const Mat &_orig);
 void drawOverlay(const Mat &_orig, const vector<Point> &targets);
 
 //send target data to v5
-void sendTargets(boost::asio::serial_port &serial);
+void sendTargets();
 
 int main(int argc, char **argv){
     const auto &getTime = []{
@@ -142,34 +136,6 @@ int main(int argc, char **argv){
             }
             break;
     }
-
-#ifdef USE_SERIAL
-    /*
-    boost::asio::io_context serialContext;
-    boost::asio::serial_port serial(serialContext);
-    try {
-        serial.open(serialPortName);
-        serial.set_option(boost::asio::serial_port_base::baud_rate(serialBaudRate));
-        string msg("hello world\n");
-        cout << "sent: " << msg << endl;
-        serial.write_some(boost::asio::buffer(msg, msg.size()));
-
-        const int buf_size = 128;
-        unsigned char data[buf_size];
-        size_t len = serial.read_some(boost::asio::buffer(data));
-
-        cout << "received: ";
-        for(unsigned i = 0; i < len; ++i){
-            cout << data[i];
-        }
-        cout << endl;
-
-    } catch(boost::system::system_error&){
-        cout << "unable to open serial device: " << serialPortName << endl;
-        exit(1);
-    }
-    */
-#endif
 
 #ifdef USE_WEBCAM
     VideoCapture cap;
@@ -201,12 +167,8 @@ int main(int argc, char **argv){
         const double delta = getTime() - before;
         cout << "Time elapsed: " << delta * 1000.f << " ms" << endl;
 
-#ifdef USE_SERIAL
-        boost::asio::io_context serialContext;
-        boost::asio::serial_port serial(serialContext);
-        //
-        sendTargets(serial);
-#endif
+        sendTargets();
+
 #ifdef USE_WEBCAM
     }
 #else
@@ -214,7 +176,7 @@ int main(int argc, char **argv){
 #endif
 }
 
-void sendTargets(boost::asio::serial_port &serial){
+void sendTargets(){
     auto digits = [](int32_t num) -> size_t {
         bool neg = false;
         if(num < 0){
@@ -241,11 +203,6 @@ void sendTargets(boost::asio::serial_port &serial){
     };
 
     if(targets.size() == 0){ return; }
-
-    ////assert that all points <= 9999,
-    ////number of points <= 9999,
-    ////clean up code and make more flexible with array sizes and such
-    //'b' at beginning, 'e' at end of packet or something
 
     const int dataBufSize = 256;
     //absolute maximum should be 216 digits
@@ -274,7 +231,7 @@ void sendTargets(boost::asio::serial_port &serial){
     //add crc to end
     snprintf(buf + len + dataOffset + headerSize, crcSize + 2, "%u\n", crc);
 
-#ifdef SERIAL_DEBUG
+#ifdef DEBUG 
     //all this tricky stuff
     // databuf:[\|\|\databuf\|\|\]
     //     buf:[_____\|\|\|databuf|\|\_____]
@@ -303,10 +260,10 @@ void sendTargets(boost::asio::serial_port &serial){
     cout << buf << endl;
 #endif
 
-    //send buf
-    //serial.write_some(boost::asio::buffer(buf, len + dataOffset));
+    for(int i = 0; i < bufSize; ++i){
+        putchar(buf[i]);
+    }
 
-    //delete[] databuf;
     delete[] buf;
 
 }
