@@ -1,4 +1,4 @@
-#define USE_WEBCAM
+//#define USE_WEBCAM
 //#define DEBUG
 //#define DEBUG_OUTPUT
 //#define DRAW_OVERLAY

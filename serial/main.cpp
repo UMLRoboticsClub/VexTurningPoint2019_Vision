@@ -30,9 +30,6 @@ void output(){
             puts(input.c_str());
         }
     }
-
-    closeSerial();
-    puts("EOF reached, bye");
 }
 
 void input(){
