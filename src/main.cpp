@@ -1,4 +1,4 @@
-//#define USE_WEBCAM
+#define USE_WEBCAM
 //#define DEBUG
 //#define DEBUG_OUTPUT
 //#define DRAW_OVERLAY
@@ -141,11 +141,6 @@ int main(int argc, char **argv){
 #ifdef USE_WEBCAM
     VideoCapture cap;
 
-    //for c930e
-    //Capture.set(CV_CAP_PROP_FOURCC, CV_FOURCC('M','J','P','G'));
-    //Capture.set(CV_CAP_PROP_FRAME_WIDTH, 1920);
-    //Capture.set(CV_CAP_PROP_FRAME_HEIGHT, 1080);
-
     if(!cap.open(cam_index)){
         cout << "cannot open video device\n";
         exit(1);
@@ -159,6 +154,16 @@ int main(int argc, char **argv){
 #ifdef USE_WEBCAM
     cap >> frame;
     frameSize = frame.size();
+
+
+    //for c930e, these need to be set after first frame is received
+    cap.set(CV_CAP_PROP_FOURCC, CV_FOURCC('M','J','P','G'));
+    cap.set(CV_CAP_PROP_FRAME_WIDTH, 1920);
+    cap.set(CV_CAP_PROP_FRAME_HEIGHT, 1080);
+    //cap.set(CV_CAP_PROP_FPS, 30); //not really needed
+    //hold only one frame in buffer for less latency (default is 5)
+    cap.set(CV_CAP_PROP_BUFFERSIZE, 1);
+
     cout << "\nHit 'q' to exit...\n";
     while(waitKey(1) != 'q'){
         cap >> frame;
