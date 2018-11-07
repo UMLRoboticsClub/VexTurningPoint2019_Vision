@@ -117,11 +117,14 @@ int main(){
     vector<Point> targets;
     while(cin){
         std::getline(cin, input);
-        if(strncmp(input.c_str(), header, headerLen) == 0){
-            cout << input.c_str() << endl;
-        } else {
-            puts(input.c_str());
+
+        //does header exist?
+        if(strncmp(input.c_str(), header, headerLen) != 0){
+            continue;
         }
+
+        cout << input << endl;
+
         targets.clear();
         parseInput(input, targets);
         doThing(targets);

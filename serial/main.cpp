@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <string>
 
@@ -13,21 +12,25 @@ using std::cin;
 using std::cout;
 using std::endl;
 using std::string;
+using std::getline;
 
 char *serialPortName;
 unsigned serialBaudRate;
 const char *header = "zz ";
 
+//read a line, if header exists, send it over serial
+//otherwise print it
 void output(){
     int headerLen = strlen(header);
 
     string input;
     while(cin){
-        std::getline(cin, input); 
+        getline(cin, input); 
+        //does the header exist?
         if(strncmp(input.c_str(), header, headerLen) == 0){
             serialWrite(input.c_str(), input.size());
         } else {
-            puts(input.c_str());
+            cout << input << endl;
         }
     }
 }
@@ -39,7 +42,7 @@ void input(){
 void setup(){
     cout << "using port " << serialPortName << " at " << serialBaudRate << " baud" << endl;
 
-    //B115200, B230400, B9600, B19200, B38400, B57600, B1200, B2400, B4800
+    //options are: B115200, B230400, B9600, B19200, B38400, B57600, B1200, B2400, B4800
     switch(serialBaudRate){
         case 115200:
             serialBaudRate = B115200;
