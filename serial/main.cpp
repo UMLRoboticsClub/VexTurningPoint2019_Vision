@@ -37,23 +37,23 @@ void checkInput(){
 //read a line, if header exists, send it over serial
 //otherwise print it
 void output(){
-    //int headerLen = strlen(header);
+    int headerLen = strlen(header);
 
     string input;
     while(cin){
         getline(cin, input); 
         input += '\n';
 
-        serialWrite(input.c_str(), input.size());
+        //serialWrite(input.c_str(), input.size());
 
-        ////does the header exist?
-        //if(strncmp(input.c_str(), header, headerLen) == 0){
-        //    //serialWrite("sout", 4);
-        //    serialWrite(input.c_str(), input.size());
-        //} else {
-        //    cout << input << endl;
-        //}
-        checkInput();
+        //does the header exist?
+        if(strncmp(input.c_str(), header, headerLen) == 0){
+            //serialWrite("sout", 4);
+            serialWrite(input.c_str(), input.size());
+        } else {
+            cout << input << endl;
+        }
+        //checkInput();
     }
 }
 

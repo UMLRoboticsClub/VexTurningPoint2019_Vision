@@ -38,7 +38,7 @@ void parseInput(string &input, vector<Point> &targets){
         return;
     }
 
-    while(isspace(buf[pktIndex + 1])) ++pktIndex; //skip spaces
+    while(isspace(buf[pktIndex])) ++pktIndex; //skip spaces
 
     for(; pktIndex < headerSize; ++pktIndex){
         if(header[pktIndex] != buf[pktIndex]){
@@ -52,7 +52,7 @@ void parseInput(string &input, vector<Point> &targets){
     cout << "packet header ok" << endl;
 #endif
 
-    while(isspace(buf[pktIndex + 1])) ++pktIndex; //skip spaces
+    while(isspace(buf[pktIndex])) ++pktIndex; //skip spaces
 
     char *end;
     const char *afterHeader = buf + pktIndex - 1;
