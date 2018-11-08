@@ -80,7 +80,7 @@ void closeSerial(){
 }
 
 void serialWrite(const char *str, int len){
-    write(fd, str, len);           // send 7 character greeting
+    write(fd, str, len);                  // send 7 character greeting
     //usleep((7 + 25) * 100);             // sleep enough to transmit the 7 plus
 }
 

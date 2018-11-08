@@ -18,20 +18,42 @@ char *serialPortName;
 unsigned serialBaudRate;
 const char *header = "zz ";
 
+void checkInput(){
+    static char buf[256]; 
+    int len = serialRead(buf, 256);
+
+    //error or zero bytes read
+    if(len < 1){
+        return;    
+    }
+
+    for(int i = 0; i < len; ++i){
+        buf[i] = buf[i + 5];
+    }
+
+    cout << "received: " << buf << endl;
+}
+
 //read a line, if header exists, send it over serial
 //otherwise print it
 void output(){
-    int headerLen = strlen(header);
+    //int headerLen = strlen(header);
 
     string input;
     while(cin){
         getline(cin, input); 
-        //does the header exist?
-        if(strncmp(input.c_str(), header, headerLen) == 0){
-            serialWrite(input.c_str(), input.size());
-        } else {
-            cout << input << endl;
-        }
+        input += '\n';
+
+        serialWrite(input.c_str(), input.size());
+
+        ////does the header exist?
+        //if(strncmp(input.c_str(), header, headerLen) == 0){
+        //    //serialWrite("sout", 4);
+        //    serialWrite(input.c_str(), input.size());
+        //} else {
+        //    cout << input << endl;
+        //}
+        checkInput();
     }
 }
 
