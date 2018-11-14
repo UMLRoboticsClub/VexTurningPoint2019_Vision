@@ -1,6 +1,6 @@
 #define USE_WEBCAM
-//#define DEBUG
-//#define DEBUG_OUTPUT
+#define DEBUG
+#define DEBUG_OUTPUT
 #define DRAW_OVERLAY
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -38,6 +38,9 @@ struct Pair {
 const int cam_index = 0;
 static string test_image = "../img/field2.jpg";
 
+//want to switch this to false for autonomous
+bool targetMode = true;
+
 /* params to tune */
 
 //ratio of dist to green/
@@ -50,6 +53,10 @@ const int maxEdgeThresh = 200;
 const double polyEpsilon = 14;
 
 /* HSV color ranges for flags */
+//yellow (for ball)
+const int ySensitivity = 8;
+const static Scalar yMin(60 - ySensitivity, 178, 204);
+const static Scalar yMax(60 + ySensitivity, 255, 255);
 
 //blue
 const int bSensitivity = 20;
@@ -57,7 +64,7 @@ const static Scalar bMin(120 - bSensitivity, 70, 70);
 const static Scalar bMax(120 + bSensitivity, 255, 255);
 
 //green
-const int gSensitivity = 28;
+const int gSensitivity = 25;
 const static Scalar gMin(60 - gSensitivity, 25, 100);
 const static Scalar gMax(60 + gSensitivity, 255, 255);
 
@@ -314,27 +321,49 @@ void processFrame(Mat &frame){
 #endif
     prepFrame(frame);
 
-    //processF(frame);
-    //processG(frame);
+    if(__builtin_expect(targetMode, 1)){
+        //processF(frame);
+        //processG(frame);
 
-    thread t_b([&](){ processF(frame); });
-    thread t_g([&](){ processG(frame); });
+        thread t_b([&](){ processF(frame); });
+        thread t_g([&](){ processG(frame); });
 
-    targets.clear();
-    targets.reserve(F::polygons.size());
+        targets.clear();
+        targets.reserve(F::polygons.size());
 
-    t_b.join();
-    t_g.join();
+        t_b.join();
+        t_g.join();
 
-    findTargets(targets);
-    cout << "found " << targets.size() << " targets" << endl;
+        findTargets(targets);
+        cout << "found " << targets.size() << " targets" << endl;
 
 #ifdef DEBUG
-    drawDbg(_frame);
+        drawDbg(_frame);
 #endif
 #ifdef DRAW_OVERLAY
-    drawOverlay(_frame, targets);
+        drawOverlay(_frame, targets);
 #endif
+    } else {
+        //finding balls
+        /*
+           v5 logic:
+           if no balls found {
+            spin slow until ball found
+           }
+
+           if ball found {
+            choose leftmost ball and move towards it
+            pick it up w/ timeout for failure (maybe need to keep track of ball focus)
+            move to a place where you can score a ball based on encoders (should be good enough)
+            shoot ball at top target
+           }
+        */
+
+
+
+
+
+    }
 }
 
 void findTargets(vector<Point> &targets){
