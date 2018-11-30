@@ -18,6 +18,12 @@ char *serialPortName;
 unsigned serialBaudRate;
 const char *header = "zz ";
 
+//better header, needs testing
+//#define STX 0x1
+//#define SOT 0x2
+//#define EOT 0x4
+//const char *header = "STX, STX, SOT";
+
 void checkInput(){
     static char buf[256]; 
     int len = serialRead(buf, 256);
@@ -31,12 +37,12 @@ void checkInput(){
         buf[i] = buf[i + 5];
     }
 
-    cout << "received: " << buf << endl;
+    cout << "[R]: " << buf << endl;
 }
 
 //read a line, if header exists, send it over serial
 //otherwise print it
-void output(){
+void readAndProcessData(){
     int headerLen = strlen(header);
 
     string input;
@@ -51,14 +57,11 @@ void output(){
             //serialWrite("sout", 4);
             serialWrite(input.c_str(), input.size());
         } else {
+            //if no header, it's a debug message, print it
             cout << input << endl;
         }
-        //checkInput();
+        checkInput();
     }
-}
-
-void input(){
-    //does nothing
 }
 
 void setup(){
@@ -88,12 +91,7 @@ int main(int argc, char **argv){
     serialBaudRate = strtol(argv[2], NULL, 10);
 
     setup();
-
-    if(argc == 4 && strcmp(argv[3], "i") == 0){
-        input();
-    } else {
-        output();
-    }
+    readAndProcessData();
 
     closeSerial();
     puts("EOF reached, bye");
