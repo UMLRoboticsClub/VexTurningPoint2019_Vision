@@ -12,7 +12,7 @@ OBJECTS  = $(patsubst %.cpp, %.o, $(SRCFILES))
 ifeq ($(shell uname -p),aarch64)
         INCLUDE  = -I/usr/local/include/opencv4
 else
-        INCLUDE  =
+        INCLUDE  = -I/usr/include/opencv4
 endif
 
 all: $(TARGET)

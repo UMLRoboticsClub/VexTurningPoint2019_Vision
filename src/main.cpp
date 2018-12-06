@@ -2,6 +2,7 @@
 #define DEBUG
 #define DEBUG_OUTPUT
 #define DRAW_OVERLAY
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -163,13 +164,15 @@ int main(int argc, char **argv){
     frameSize = frame.size();
 
 
-    //for c930e, these need to be set after first frame is received
-    cap.set(CV_CAP_PROP_FOURCC, CV_FOURCC('M','J','P','G'));
-    cap.set(CV_CAP_PROP_FRAME_WIDTH, 1920);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT, 1080);
-    //cap.set(CV_CAP_PROP_FPS, 30); //not really needed
+    //TODO: uncomment this when using the real camera
+    ////////for c930e, these need to be set after first frame is received
+    //////cap.set(CV_CAP_PROP_FOURCC, CV_FOURCC('M','J','P','G'));
+    //////cap.set(CV_CAP_PROP_FRAME_WIDTH, 1920);
+    //////cap.set(CV_CAP_PROP_FRAME_HEIGHT, 1080);
     //hold only one frame in buffer for less latency (default is 5)
-    cap.set(CV_CAP_PROP_BUFFERSIZE, 1);
+    //////cap.set(CV_CAP_PROP_BUFFERSIZE, 1);
+
+    //cap.set(CV_CAP_PROP_FPS, 30); //not really needed
 
     cout << "\nHit 'q' to exit...\n";
     while(waitKey(1) != 'q'){
