@@ -8,6 +8,8 @@
 
 #include "serial.h"
 
+//#define DEBUG_OUTPUT
+
 using std::cin;
 using std::cout;
 using std::endl;
@@ -56,6 +58,9 @@ void readAndProcessData(){
         if(strncmp(input.c_str(), header, headerLen) == 0){
             //serialWrite("sout", 4);
             serialWrite(input.c_str(), input.size());
+#ifdef DEBUG_OUTPUT
+            cout << input << endl;
+#endif
         } else {
             //if no header, it's a debug message, print it
             cout << input << endl;
@@ -76,7 +81,7 @@ void setup(){
             serialBaudRate = B9600;
             break;
     }
-    
+
     openSerial(serialPortName, serialBaudRate);
 }
 

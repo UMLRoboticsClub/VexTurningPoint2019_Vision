@@ -1,6 +1,6 @@
 #define USE_WEBCAM
-#define DEBUG
-#define DEBUG_OUTPUT
+//#define DEBUG
+//#define DEBUG_OUTPUT
 #define DRAW_OVERLAY
 
 #include <opencv2/core/core.hpp>
@@ -65,7 +65,7 @@ const static Scalar bMin(120 - bSensitivity, 70, 70);
 const static Scalar bMax(120 + bSensitivity, 255, 255);
 
 //green
-const int gSensitivity = 25;
+const int gSensitivity = 23;
 const static Scalar gMin(60 - gSensitivity, 25, 100);
 const static Scalar gMax(60 + gSensitivity, 255, 255);
 
@@ -130,10 +130,15 @@ void drawOverlay(const Mat &_orig, const vector<Point> &targets);
 void sendTargets();
 
 int main(int argc, char **argv){
+    //program (should) never end, so buffer by line so piping works
+    setlinebuf(stdout);
+
+#ifdef DEBUG_OUTPUT
     const auto &getTime = []{
         using namespace std::chrono;
         return duration<double>(high_resolution_clock::now().time_since_epoch()).count();
     };
+#endif
 
     switch(argc){
         case 3:
@@ -178,14 +183,19 @@ int main(int argc, char **argv){
     while(waitKey(1) != 'q'){
         cap >> frame;
 #endif
+#ifdef DEBUG_OUTPUT
         const double before = getTime();
+#endif
         processFrame(frame);
+#ifdef DEBUG_OUTPUT
         const double delta = getTime() - before;
         cout << "Time elapsed: " << delta * 1000.f << " ms" << endl;
-
+#endif
         sendTargets();
 
+#ifdef DEBUG_OUTPUT
         cout << endl;
+#endif
 
 #ifdef USE_WEBCAM
     }
@@ -239,7 +249,7 @@ void sendTargets(){
     const int headerSize = strlen(header);
     const int bufSize = len + sizeSize + crcSize + headerSize;
     char *buf = new char[bufSize];
-    
+
     snprintf(buf, headerSize + 1, "%s", header);
     //add length to beginning
     snprintf(buf + headerSize, sizeSize + headerSize, "%d ", (int)targets.size());
@@ -337,9 +347,11 @@ void processFrame(Mat &frame){
         t_b.join();
         t_g.join();
 
-        findTargets(targets);
-        cout << "found " << targets.size() << " targets" << endl;
 
+        findTargets(targets);
+#ifdef DEBUG_OUTPUT
+        cout << "found " << targets.size() << " targets" << endl;
+#endif
 #ifdef DEBUG
         drawDbg(_frame);
 #endif
@@ -351,16 +363,16 @@ void processFrame(Mat &frame){
         /*
            v5 logic:
            if no balls found {
-            spin slow until ball found
+           spin slow until ball found
            }
 
            if ball found {
-            choose leftmost ball and move towards it
-            pick it up w/ timeout for failure (maybe need to keep track of ball focus)
-            move to a place where you can score a ball based on encoders (should be good enough)
-            shoot ball at top target
+           choose leftmost ball and move towards it
+           pick it up w/ timeout for failure (maybe need to keep track of ball focus)
+           move to a place where you can score a ball based on encoders (should be good enough)
+           shoot ball at top target
            }
-        */
+           */
 
         //also populate targets
 

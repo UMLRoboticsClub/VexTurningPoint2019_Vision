@@ -65,7 +65,6 @@ void set_blocking(int fd, int should_block){
 
 //B115200, B230400, B9600, B19200, B38400, B57600, B1200, B2400, B4800
 void openSerial(const char *port, int baud){
-
     fd = open(port, O_RDWR | O_NOCTTY | O_SYNC);
     if(fd < 0){
         error_message("error opening device", errno);
