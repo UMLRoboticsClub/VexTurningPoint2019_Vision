@@ -8,6 +8,11 @@
 
 #include "serial.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+
 //#define DEBUG_OUTPUT
 
 using std::cin;
@@ -19,6 +24,9 @@ using std::getline;
 char *serialPortName;
 unsigned serialBaudRate;
 const char *header = "zz ";
+
+fd_set readfds;
+struct timeval timeout;
 
 //better header, needs testing
 //#define STX 0x1
@@ -35,11 +43,19 @@ void checkInput(){
         return;    
     }
 
-    for(int i = 0; i < len; ++i){
-        buf[i] = buf[i + 5];
-    }
+    //for(int i = 0; i < len; ++i){
+    //    buf[i] = buf[i + 5];
+    //}
 
     cout << "[R]: " << buf << endl;
+}
+
+//is there data in stdin?
+bool dataAvailable(){
+    if(select(1, &readfds, NULL, NULL, &timeout)){
+        return true;
+    }
+    return false;
 }
 
 //read a line, if header exists, send it over serial
@@ -48,22 +64,28 @@ void readAndProcessData(){
     int headerLen = strlen(header);
 
     string input;
-    while(cin){
-        getline(cin, input); 
-        input += '\n';
+    while(1){
+        while(dataAvailable()){
+            getline(cin, input);
 
-        //serialWrite(input.c_str(), input.size());
+            cout << "[S]: " << input << endl;
 
-        //does the header exist?
-        if(strncmp(input.c_str(), header, headerLen) == 0){
-            //serialWrite("sout", 4);
-            serialWrite(input.c_str(), input.size());
+            //input += '\n';
+            
+
+            //serialWrite(input.c_str(), input.size());
+
+            //does the header exist?
+            if(strncmp(input.c_str(), header, headerLen) == 0){
+                //serialWrite("sout", 4);
+                serialWrite(input.c_str(), input.size());
 #ifdef DEBUG_OUTPUT
-            cout << input << endl;
+                cout << input << endl;
 #endif
-        } else {
-            //if no header, it's a debug message, print it
-            cout << input << endl;
+            } else {
+                //if no header, it's a debug message, print it
+                cout << "[V]: " << input << endl;
+            }
         }
         checkInput();
     }
@@ -83,6 +105,20 @@ void setup(){
     }
 
     openSerial(serialPortName, serialBaudRate);
+    
+    //wait, this is output from V5, we don't care what it is, it doesn't interfere with vision stuff, so delete stuff under this
+
+    ////skip header crap
+    //puts("skipping header...");
+    //while(getchar() != 'z');
+    //puts("skipped header");
+
+    FD_ZERO(&readfds);
+
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    FD_SET(STDIN_FILENO, &readfds);
 }
 
 int main(int argc, char **argv){
