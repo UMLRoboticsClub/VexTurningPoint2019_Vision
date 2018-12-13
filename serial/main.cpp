@@ -1,18 +1,16 @@
 #include <iostream>
 #include <string>
 
-#include <csignal>
-#include <cstring>
-
-#include "serial.h"
-
 #include <cstdio>
 #include <cstdlib>
+#include <csignal>
+#include <cstring>
 
 #include <unistd.h>
 #include <termios.h>
 #include <signal.h>
 
+#include "serial.h"
 
 //#define DEBUG_OUTPUT
 
@@ -22,15 +20,15 @@ using std::endl;
 using std::string;
 using std::getline;
 
-char *serialPortName;
-unsigned serialBaudRate;
-const char *header = "zz ";
+static char *serialPortName;
+static unsigned serialBaudRate;
+static const char *header = "zz ";
 
-fd_set readfds;
+static fd_set readfds;
 //seconds, microseconds
-struct timeval timeout { 0, 50000 };
+static struct timeval timeout { 0, 50000 };
 
-bool running = true;
+static bool running = true;
 
 //better header, needs testing
 //#define STX 0x1
@@ -56,10 +54,7 @@ void checkInput(){
 
 //is there data in stdin?
 bool dataAvailable(){
-    if(select(1, &readfds, NULL, NULL, &timeout)){
-        return true;
-    }
-    return false;
+    return select(1, &readfds, NULL, NULL, &timeout) > 0;
 }
 
 //read a line, if header exists, send it over serial
@@ -72,17 +67,10 @@ void readAndProcessData(){
         while(dataAvailable()){
             getline(cin, input);
 
-            cout << "[S]: " << input << endl;
-
-            //input += '\n';
-            
-
-            //serialWrite(input.c_str(), input.size());
-
             //does the header exist?
             if(strncmp(input.c_str(), header, headerLen) == 0){
-                //serialWrite("sout", 4);
                 serialWrite(input.c_str(), input.size());
+                cout << "[S]: " << input << endl;
 #ifdef DEBUG_OUTPUT
                 cout << input << endl;
 #endif
@@ -91,7 +79,10 @@ void readAndProcessData(){
                 cout << "[V]: " << input << endl;
             }
         }
-        checkInput();
+        //while(serialAvailable()){
+        //    checkInput();
+        //}
+        checkInput(); //non-blocking
     }
 }
 
@@ -109,7 +100,7 @@ void setup(){
     }
 
     openSerial(serialPortName, serialBaudRate);
-    
+
     FD_ZERO(&readfds);
     FD_SET(0, &readfds);
 }

@@ -1,12 +1,18 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
 #include <errno.h>
 #include <fcntl.h> 
-#include <string.h>
 #include <termios.h>
 #include <unistd.h>
 
 int fd = 0;
+
+static fd_set readfds;
+//seconds, microseconds
+static struct timeval timeout { 0, 50000 };
+
 
 void error_message(const char *message, int error){
     fprintf(stderr, "%s: %s\n", message, strerror(error));
@@ -72,6 +78,10 @@ void openSerial(const char *port, int baud){
 
     set_interface_attribs(fd, baud, 0);  // set speed to 115,200 bps, 8n1(no parity)
     set_blocking(fd, 0);                // set no blocking
+
+    FD_ZERO(&readfds);
+    FD_SET(fd, &readfds);
+
 }
 
 void closeSerial(){
@@ -94,3 +104,7 @@ int serialRead(char *buf, int bufSize){
 //int serialReadChar(){
 //    return fgetc(fd);
 //}
+
+bool serialAvailable(){
+    return select(1, &readfds, NULL, NULL, &timeout) > 0;
+}

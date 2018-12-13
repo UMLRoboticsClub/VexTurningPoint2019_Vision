@@ -131,7 +131,8 @@ void sendTargets();
 
 int main(int argc, char **argv){
     //program (should) never end, so buffer by line so piping works
-    setlinebuf(stdout);
+    //instead, I call fflush(stdout) each loop
+    //setlinebuf(stdout);
 
 #ifdef DEBUG_OUTPUT
     const auto &getTime = []{
@@ -192,6 +193,7 @@ int main(int argc, char **argv){
         cout << "Time elapsed: " << delta * 1000.f << " ms" << endl;
 #endif
         sendTargets();
+        fflush(stdout);
 
 #ifdef DEBUG_OUTPUT
         cout << endl;

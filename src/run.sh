@@ -5,4 +5,7 @@
 
 ./vision | tee /dev/tty | ../serial/serial /dev/ttyACM1 115200
 #./vision | ../serial/serial /dev/ttyACM1 115200
+
+#unbuffer ./vision | ../serial/serial /dev/ttyACM1 115200
+
 #./vision | ../parser/parser
