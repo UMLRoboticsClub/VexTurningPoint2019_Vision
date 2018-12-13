@@ -4,13 +4,14 @@
 #include <csignal>
 #include <cstring>
 
-#include <termios.h>
-
 #include "serial.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+
 #include <unistd.h>
+#include <termios.h>
+#include <signal.h>
 
 
 //#define DEBUG_OUTPUT
@@ -26,7 +27,10 @@ unsigned serialBaudRate;
 const char *header = "zz ";
 
 fd_set readfds;
-struct timeval timeout;
+//seconds, microseconds
+struct timeval timeout { 0, 50000 };
+
+bool running = true;
 
 //better header, needs testing
 //#define STX 0x1
@@ -64,7 +68,7 @@ void readAndProcessData(){
     int headerLen = strlen(header);
 
     string input;
-    while(1){
+    while(running){
         while(dataAvailable()){
             getline(cin, input);
 
@@ -106,19 +110,12 @@ void setup(){
 
     openSerial(serialPortName, serialBaudRate);
     
-    //wait, this is output from V5, we don't care what it is, it doesn't interfere with vision stuff, so delete stuff under this
-
-    ////skip header crap
-    //puts("skipping header...");
-    //while(getchar() != 'z');
-    //puts("skipped header");
-
     FD_ZERO(&readfds);
+    FD_SET(0, &readfds);
+}
 
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
-
-    FD_SET(STDIN_FILENO, &readfds);
+void signalHandler(int){
+    running = false;
 }
 
 int main(int argc, char **argv){
@@ -131,9 +128,11 @@ int main(int argc, char **argv){
     serialPortName = argv[1];
     serialBaudRate = strtol(argv[2], NULL, 10);
 
+    signal(SIGINT, signalHandler);
+
     setup();
     readAndProcessData();
 
     closeSerial();
-    puts("EOF reached, bye");
+    puts("\nexiting, bye");
 }
