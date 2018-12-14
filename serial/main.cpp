@@ -1,14 +1,15 @@
 #include <iostream>
 #include <string>
+#include <thread>
+#include <mutex>
 
 #include <cstdio>
 #include <cstdlib>
 #include <csignal>
 #include <cstring>
 
-#include <unistd.h>
-#include <termios.h>
 #include <signal.h>
+#include <termios.h>
 
 #include "serial.h"
 
@@ -19,16 +20,13 @@ using std::cout;
 using std::endl;
 using std::string;
 using std::getline;
+using std::thread;
 
 static char *serialPortName;
 static unsigned serialBaudRate;
 static const char *header = "zz ";
 
-static fd_set readfds;
-//seconds, microseconds
-static struct timeval timeout { 0, 50000 };
-
-static bool running = true;
+static std::mutex mutex;
 
 //better header, needs testing
 //#define STX 0x1
@@ -36,53 +34,54 @@ static bool running = true;
 //#define EOT 0x4
 //const char *header = "STX, STX, SOT";
 
-void checkInput(){
-    static char buf[256]; 
-    int len = serialRead(buf, 256);
-
-    //error or zero bytes read
-    if(len < 1){
-        return;    
-    }
-
-    //for(int i = 0; i < len; ++i){
-    //    buf[i] = buf[i + 5];
-    //}
-
-    cout << "[R]: " << buf << endl;
+void signalHandler(int){
+    closeSerial();
+    puts("\nexiting, bye");
+    exit(0);
 }
 
-//is there data in stdin?
-bool dataAvailable(){
-    return select(1, &readfds, NULL, NULL, &timeout) > 0;
+void checkInput(){
+    static char buf[512]; 
+    int len = serialRead(buf, 512);
+
+    if(len < 1){
+        signalHandler(0);
+    }
+
+    for(int i = 0; i < len; ++i){
+        char c = buf[i];
+        if(c == 0){
+            buf[i] = ' ';
+        }
+    }
+    buf[len] = 0;
+
+    mutex.lock();
+    cout << "[R]: " << buf;
+    fflush(stdout);
+    mutex.unlock();
 }
 
 //read a line, if header exists, send it over serial
 //otherwise print it
 void readAndProcessData(){
     int headerLen = strlen(header);
-
     string input;
-    while(running){
-        while(dataAvailable()){
-            getline(cin, input);
 
+    while(1){
+        while(getline(cin, input)){
+            input += '\n';
+            mutex.lock();
             //does the header exist?
             if(strncmp(input.c_str(), header, headerLen) == 0){
                 serialWrite(input.c_str(), input.size());
                 cout << "[S]: " << input << endl;
-#ifdef DEBUG_OUTPUT
-                cout << input << endl;
-#endif
             } else {
                 //if no header, it's a debug message, print it
                 cout << "[V]: " << input << endl;
             }
+            mutex.unlock();
         }
-        //while(serialAvailable()){
-        //    checkInput();
-        //}
-        checkInput(); //non-blocking
     }
 }
 
@@ -100,13 +99,6 @@ void setup(){
     }
 
     openSerial(serialPortName, serialBaudRate);
-
-    FD_ZERO(&readfds);
-    FD_SET(0, &readfds);
-}
-
-void signalHandler(int){
-    running = false;
 }
 
 int main(int argc, char **argv){
@@ -122,8 +114,11 @@ int main(int argc, char **argv){
     signal(SIGINT, signalHandler);
 
     setup();
-    readAndProcessData();
 
-    closeSerial();
-    puts("\nexiting, bye");
+    thread writeThread(readAndProcessData);
+    writeThread.detach();
+
+    while(1){
+        checkInput();
+    }
 }

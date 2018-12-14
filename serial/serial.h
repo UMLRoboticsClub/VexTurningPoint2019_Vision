@@ -10,4 +10,3 @@ void serialWrite(const char *str, int len);
 //void serialWriteChar(const char c);
 int serialRead(char *buf, int bufSize);
 //int serialReadChar();
-bool serialAvailable();

@@ -7,12 +7,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-int fd = 0;
-
-static fd_set readfds;
-//seconds, microseconds
-static struct timeval timeout { 0, 50000 };
-
+static int fd = 0;
 
 void error_message(const char *message, int error){
     fprintf(stderr, "%s: %s\n", message, strerror(error));
@@ -77,11 +72,9 @@ void openSerial(const char *port, int baud){
     }
 
     set_interface_attribs(fd, baud, 0);  // set speed to 115,200 bps, 8n1(no parity)
-    set_blocking(fd, 0);                // set no blocking
+    set_blocking(fd, 1);                // set blocking
 
-    FD_ZERO(&readfds);
-    FD_SET(fd, &readfds);
-
+    tcflush(fd, TCIFLUSH);
 }
 
 void closeSerial(){
@@ -89,8 +82,7 @@ void closeSerial(){
 }
 
 void serialWrite(const char *str, int len){
-    write(fd, str, len);                  // send 7 character greeting
-    //usleep((7 + 25) * 100);             // sleep enough to transmit the 7 plus
+    write(fd, str, len);
 }
 
 //void serialWriteChar(const char c){
@@ -104,7 +96,3 @@ int serialRead(char *buf, int bufSize){
 //int serialReadChar(){
 //    return fgetc(fd);
 //}
-
-bool serialAvailable(){
-    return select(1, &readfds, NULL, NULL, &timeout) > 0;
-}
