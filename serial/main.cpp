@@ -34,6 +34,23 @@ static std::mutex mutex;
 //#define EOT 0x4
 //const char *header = "STX, STX, SOT";
 
+#define RST  "\x1B[0m"
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
+
+#define FRED(x) KRED x RST
+#define FGRN(x) KGRN x RST
+#define FYEL(x) KYEL x RST
+#define FBLU(x) KBLU x RST
+#define FMAG(x) KMAG x RST
+#define FCYN(x) KCYN x RST
+#define FWHT(x) KWHT x RST
+
 void signalHandler(int){
     closeSerial();
     puts("\nexiting, bye");
@@ -65,7 +82,7 @@ void checkInput(){
 
     string line = serialReadLine();
     mutex.lock();
-    cout << "[R]: " << line << endl;
+    cout << FRED("[R]: ") << line << endl;
     mutex.unlock();
 }
 
@@ -82,10 +99,10 @@ void readAndProcessData(){
             //does the header exist?
             if(strncmp(input.c_str(), header, headerLen) == 0){
                 serialWrite(input.c_str(), input.size());
-                cout << "[S]: " << input << endl;
+                cout << FGRN("[S]: ") << input << endl;
             } else {
                 //if no header, it's a debug message, print it
-                cout << "[V]: " << input << endl;
+                cout << FBLU("[V]: ") << input << endl;
             }
             mutex.unlock();
         }
