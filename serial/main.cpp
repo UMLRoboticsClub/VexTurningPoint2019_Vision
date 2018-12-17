@@ -58,28 +58,6 @@ void signalHandler(int){
 }
 
 void checkInput(){
-    /*
-    static char buf[512]; 
-    int len = serialRead(buf, 512);
-
-    if(len < 1){
-        signalHandler(0);
-    }
-
-    for(int i = 0; i < len; ++i){
-        char c = buf[i];
-        if(c == 0){
-            buf[i] = ' ';
-        }
-    }
-    buf[len] = 0;
-
-    mutex.lock();
-    cout << "[R]: " << buf;
-    fflush(stdout);
-    mutex.unlock();
-    */
-
     string line = serialReadLine();
     mutex.lock();
     cout << FRED("[R]: ") << line << endl;

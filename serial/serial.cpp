@@ -94,12 +94,11 @@ int serialRead(char *buf, int bufSize){
 
 void removeNull(char *buf, int len){
     for(int i = 0; i < len; ++i){
-        char c = buf[i];
-        if(c == 0){
+        if(buf[i] == 0){
             buf[i] = ' ';
         }
     }
-    buf[len] = 0;
+    buf[len - 1] = 0;
 }
 
 std::string serialReadLine(){
@@ -110,7 +109,7 @@ std::string serialReadLine(){
     while(index == std::string::npos){
         int len = serialRead(buf, 32);
         removeNull(buf, len);
-        inbuf += buf;
+        inbuf.append(buf);
         index = inbuf.find('\n');
     }
 

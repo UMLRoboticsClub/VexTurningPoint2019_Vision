@@ -1,6 +1,6 @@
 CXX      = g++
 LDFLAGS  = -lpthread
-CXXFLAGS = -std=c++17 -Wall -Wextra -Wfatal-errors -g
+CXXFLAGS = -std=c++17 -Wall -Wextra -Wfatal-errors -O3 -funroll-loops -march=native
 CXXFLAGS += $(INCLUDE)
 TARGET   = serial 
 SRCFILES = main.cpp serial.cpp
