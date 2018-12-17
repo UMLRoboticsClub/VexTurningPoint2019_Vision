@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 void error_message(const char *message, int error);
 int set_interface_attribs(int fd, int speed, int parity);
 void set_blocking(int fd, int should_block);
@@ -7,6 +9,5 @@ void set_blocking(int fd, int should_block);
 void openSerial(const char *port, int baud);
 void closeSerial();
 void serialWrite(const char *str, int len);
-//void serialWriteChar(const char c);
 int serialRead(char *buf, int bufSize);
-//int serialReadChar();
+std::string serialReadLine();

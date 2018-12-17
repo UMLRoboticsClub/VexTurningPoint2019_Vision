@@ -15,7 +15,10 @@
 #include <algorithm>
 #include <thread>
 #include <typeinfo>
+
 #include <cmath>
+
+#include <unistd.h>
 
 #include "crc.h"
 
@@ -176,11 +179,11 @@ int main(int argc, char **argv){
     //////cap.set(CV_CAP_PROP_FRAME_WIDTH, 1920);
     //////cap.set(CV_CAP_PROP_FRAME_HEIGHT, 1080);
     //hold only one frame in buffer for less latency (default is 5)
-    //////cap.set(CV_CAP_PROP_BUFFERSIZE, 1);
+    cap.set(CAP_PROP_BUFFERSIZE, 1);
 
-    //cap.set(CV_CAP_PROP_FPS, 30); //not really needed
+    cap.set(CAP_PROP_FPS, 30); //not really needed
 
-    cout << "\nHit 'q' to exit...\n";
+    cout << "Hit 'q' to exit...\n";
     while(waitKey(1) != 'q'){
         cap >> frame;
 #endif

@@ -41,6 +41,7 @@ void signalHandler(int){
 }
 
 void checkInput(){
+    /*
     static char buf[512]; 
     int len = serialRead(buf, 512);
 
@@ -59,6 +60,12 @@ void checkInput(){
     mutex.lock();
     cout << "[R]: " << buf;
     fflush(stdout);
+    mutex.unlock();
+    */
+
+    string line = serialReadLine();
+    mutex.lock();
+    cout << "[R]: " << line << endl;
     mutex.unlock();
 }
 

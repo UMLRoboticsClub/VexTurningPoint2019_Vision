@@ -7,7 +7,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "serial.h"
+
 static int fd = 0;
+static std::string inbuf;
 
 void error_message(const char *message, int error){
     fprintf(stderr, "%s: %s\n", message, strerror(error));
@@ -85,14 +88,34 @@ void serialWrite(const char *str, int len){
     write(fd, str, len);
 }
 
-//void serialWriteChar(const char c){
-//    fputc(c, fd);
-//}
-
 int serialRead(char *buf, int bufSize){
     return read(fd, buf, bufSize);
 }
 
-//int serialReadChar(){
-//    return fgetc(fd);
-//}
+void removeNull(char *buf, int len){
+    for(int i = 0; i < len; ++i){
+        char c = buf[i];
+        if(c == 0){
+            buf[i] = ' ';
+        }
+    }
+    buf[len] = 0;
+}
+
+std::string serialReadLine(){
+    static char buf[128];
+    size_t index = inbuf.find('\n');
+
+    //while we haven't found a line ending
+    while(index == std::string::npos){
+        int len = serialRead(buf, 128);
+        removeNull(buf, len);
+        inbuf += buf;
+        index = inbuf.find('\n');
+    }
+
+    std::string line = inbuf.substr(0, index);
+    inbuf.erase(0, index + 1);
+
+    return line;
+}
