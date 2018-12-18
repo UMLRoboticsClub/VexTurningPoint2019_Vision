@@ -102,12 +102,12 @@ void removeNull(char *buf, int len){
 }
 
 std::string serialReadLine(){
-    static char buf[32];
+    static char buf[128];
     size_t index = inbuf.find('\n');
 
     //while we haven't found a line ending
     while(index == std::string::npos){
-        int len = serialRead(buf, 32);
+        int len = serialRead(buf, 128);
         removeNull(buf, len);
         inbuf.append(buf);
         index = inbuf.find('\n');

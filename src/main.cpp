@@ -183,7 +183,7 @@ int main(int argc, char **argv){
 
     cap.set(CAP_PROP_FPS, 30); //not really needed
 
-    cout << "Hit 'q' to exit...\n";
+    cout << "Hit 'q' to exit..." << endl;
     while(waitKey(1) != 'q'){
         cap >> frame;
 #endif
@@ -197,11 +197,6 @@ int main(int argc, char **argv){
 #endif
         sendTargets();
         fflush(stdout);
-
-#ifdef DEBUG_OUTPUT
-        cout << endl;
-#endif
-
 #ifdef USE_WEBCAM
     }
 #else
