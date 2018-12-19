@@ -72,12 +72,12 @@ void readAndProcessData(){
 
     while(1){
         while(getline(cin, input)){
-            input += '\n';
             mutex.lock();
             //does the header exist?
             if(strncmp(input.c_str(), header, headerLen) == 0){
-                serialWrite(input.c_str(), input.size());
                 cout << FGRN("[S]: ") << input << endl;
+                input += '\n';
+                serialWrite(input.c_str(), input.size());
             } else {
                 //if no header, it's a debug message, print it
                 cout << FBLU("[V]: ") << input << endl;
