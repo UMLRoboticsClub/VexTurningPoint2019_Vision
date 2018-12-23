@@ -10,7 +10,9 @@ SRCFILES = main.cpp crc.cpp
 OBJECTS  = $(patsubst %.cpp, %.o, $(SRCFILES))
 
 ifeq ($(shell uname -p),aarch64)
-        INCLUDE  = -I/usr/local/include/opencv4
+   INCLUDE  = -I/usr/local/include/opencv4
+   CXXFLAGS += -march=armv8-a+crc+fp+simd -mtune=cortex-a53
+   #-fexpensive-optimizations -fprefetch-loop-arrays
 else
         INCLUDE  = -I/usr/include/opencv4
 endif
