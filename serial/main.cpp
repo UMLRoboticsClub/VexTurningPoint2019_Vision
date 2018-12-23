@@ -1,3 +1,5 @@
+    //TODO: add functionality to send data about team color
+
 #include <iostream>
 #include <string>
 #include <thread>

@@ -39,7 +39,7 @@ struct Pair {
 };
 
 /* settings */
-const int cam_index = 0;
+int cam_index = 0;
 static string test_image = "../img/field2.jpg";
 
 //want to switch this to false for autonomous
@@ -146,9 +146,16 @@ int main(int argc, char **argv){
 
     switch(argc){
         case 3:
+            //  ./vision c 1   ==   use camera index 1
+            if(strcmp(argv[1], "c") == 0){
+                cam_index = strtol(argv[2], NULL, 10);
+                break;
+            }
+            //  ./vision targets.png r   ==   use this image and set color
             test_image = argv[2];
             [[fallthrough]];
         case 2:
+            //  ./vision r   ==   set team to red
             if(strcmp(argv[1], "r") == 0){
                 team = RED;
             }
