@@ -179,6 +179,10 @@ int main(int argc, char **argv){
     cap >> frame;
     frameSize = frame.size();
 
+    cout 
+        << "Using /dev/video" << cam_index 
+        << " @ [" << frameSize.width << "x" << frameSize.height << "]" << endl;
+
 
     //TODO: uncomment this when using the real camera
     ////////for c930e, these need to be set after first frame is received
