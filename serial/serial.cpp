@@ -7,10 +7,11 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include <queue>
+
 #include "serial.h"
 
 static int fd = 0;
-static std::string inbuf;
 
 void error_message(const char *message, int error){
     fprintf(stderr, "%s: %s\n", message, strerror(error));
@@ -75,7 +76,7 @@ void openSerial(const char *port, int baud){
     }
 
     set_interface_attribs(fd, baud, 0);  // set speed to 115,200 bps, 8n1(no parity)
-    set_blocking(fd, 1);                // set blocking
+    set_blocking(fd, 1);                 // set blocking
 
     tcflush(fd, TCIFLUSH);
 }
@@ -98,25 +99,45 @@ void removeNull(char *buf, int len){
             buf[i] = ' ';
         }
     }
-    buf[len - 1] = 0;
 }
 
 std::string serialReadLine(){
-    static char buf[128];
-    size_t index = inbuf.find('\n');
+    static std::queue<char> inbuf;
+    static std::string line;
+    const int BUF_SIZE = 512;
+    char buf[BUF_SIZE];
 
-    //while we haven't found a line ending
-    while(index == std::string::npos){
-        int len = serialRead(buf, 128);
-        removeNull(buf, len);
-        inbuf.append(buf);
-        index = inbuf.find('\n');
+    line.clear();
+
+    //clear out newlines in inbuf
+    while(!inbuf.empty()){
+        char c = inbuf.front();
+        inbuf.pop();
+        if(c == '\n'){
+            //got a line
+            return line;
+        }
+        line += c;
     }
 
-    std::string line = inbuf.substr(0, index);
-    inbuf.erase(0, index + 1);
-    //reclaim some memory
-    inbuf.shrink_to_fit();
+    //clear out newlines in serial buffer
+    while(true){
+        const int len = serialRead(buf, BUF_SIZE);
+        for(int i = 0; i < len; ++i){
+            char c = buf[i];
+            if(c == '\n'){
+                //advance past that newline
+                for(++i; i < len; ++i){
+                    //add the rest of buffer to inbuf
+                    inbuf.push(buf[i]);
+                }
+                //beware of raptors
+                goto exit;
+            }
+            line += c;
+        }
+    }
 
+exit:
     return line;
 }

@@ -61,6 +61,9 @@ void signalHandler(int){
 
 void checkInput(){
     string line = serialReadLine();
+    if(line.empty()){
+        return;
+    }
     mutex.lock();
     cout << FRED("[R]: ") << line << endl;
     mutex.unlock();
