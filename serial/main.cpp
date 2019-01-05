@@ -33,12 +33,6 @@ static int HEARTBEAT_THRESH = 2000;
 //TODO: maybe adjust this later
 static int STARTUP_THRESH = 5000;
 
-//better header, needs testing
-//#define STX 0x1
-//#define SOT 0x2
-//#define EOT 0x4
-//const char *header = "STX, STX, SOT";
-
 #define RST  "\x1B[0m"
 #define KRED  "\x1B[31m"
 #define KGRN  "\x1B[32m"

@@ -7,11 +7,13 @@
 mkfifo fifo
 ./vision/vision > fifo &
 ./serial/serial /dev/ttyACM1 115200 < fifo
+
 pkill vision
+rm fifo
 
 #basic
 #./vision/vision | ./serial/serial /dev/ttyACM1 115200
 
 #other options for testing
-#./vision | tee /dev/tty | ../serial/serial /dev/ttyACM1 115200
-#./vision | ../parser/parser
+#./vision/vision | tee /dev/tty | /serial/serial /dev/ttyACM1 115200
+#./vision/vision | /parser/parser
