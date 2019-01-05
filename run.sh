@@ -1,9 +1,17 @@
-#!/bin/sh
+#!/bin/bash
 
 #vision prints the serial packets interspersed with debug/status messages
 #serial will only send the packets and will print the messages
 
-./vision/vision | ./serial/serial /dev/ttyACM1 115200
+#exits when serial fails
+mkfifo fifo
+./vision/vision > fifo &
+./serial/serial /dev/ttyACM1 115200 < fifo
+pkill vision
 
+#basic
+#./vision/vision | ./serial/serial /dev/ttyACM1 115200
+
+#other options for testing
 #./vision | tee /dev/tty | ../serial/serial /dev/ttyACM1 115200
 #./vision | ../parser/parser
