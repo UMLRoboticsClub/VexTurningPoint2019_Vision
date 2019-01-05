@@ -1,8 +1,9 @@
-    //TODO: add functionality to send data about team color
+//TODO: add functionality to send data about team color
 
 #include <iostream>
 #include <string>
 #include <thread>
+#include <chrono>
 #include <mutex>
 
 #include <cstdio>
@@ -23,12 +24,14 @@ using std::endl;
 using std::string;
 using std::getline;
 using std::thread;
+using namespace std::chrono_literals;
 
 static char *serialPortName;
 static unsigned serialBaudRate;
 static const char *header = "zz ";
-
-static std::mutex mutex;
+static int HEARTBEAT_THRESH = 2000;
+//TODO: maybe adjust this later
+static int STARTUP_THRESH = 5000;
 
 //better header, needs testing
 //#define STX 0x1
@@ -53,6 +56,33 @@ static std::mutex mutex;
 #define FCYN(x) KCYN x RST
 #define FWHT(x) KWHT x RST
 
+typedef std::chrono::time_point<std::chrono::high_resolution_clock> timept;
+
+timept now(){
+    return std::chrono::high_resolution_clock::now();
+}
+
+int diff(const timept a, const timept b){
+    return std::chrono::duration_cast<std::chrono::milliseconds>(a - b).count();
+}
+
+class {
+    public:
+        const timept getTime(){
+            std::lock_guard<std::mutex> lock(mutex);
+            return lastMsg;
+        }
+
+        void setTime(const timept &t){
+            std::lock_guard<std::mutex> lock(mutex);
+            lastMsg = t;
+        }
+    private:
+        std::mutex mutex;
+        timept lastMsg;
+} LastMsg;
+
+
 void signalHandler(int){
     closeSerial();
     puts("\nexiting, bye");
@@ -60,24 +90,26 @@ void signalHandler(int){
 }
 
 void checkInput(){
-    string line = serialReadLine();
-    if(line.empty()){
-        return;
+    string line;
+
+    while(true){
+        line = serialReadLine();
+        LastMsg.setTime(now());
+        if(line.empty()){
+            continue;
+        }
+        cout << FRED("[R]: ") << line << endl;
     }
-    mutex.lock();
-    cout << FRED("[R]: ") << line << endl;
-    mutex.unlock();
 }
 
 //read a line, if header exists, send it over serial
 //otherwise print it
 void readAndProcessData(){
-    int headerLen = strlen(header);
+    const int headerLen = strlen(header);
     string input;
 
-    while(1){
+    while(true){
         while(getline(cin, input)){
-            mutex.lock();
             //does the header exist?
             if(strncmp(input.c_str(), header, headerLen) == 0){
                 cout << FGRN("[S]: ") << input << endl;
@@ -87,25 +119,9 @@ void readAndProcessData(){
                 //if no header, it's a debug message, print it
                 cout << FBLU("[V]: ") << input << endl;
             }
-            mutex.unlock();
         }
+        std::this_thread::sleep_for(20ms);
     }
-}
-
-void setup(){
-    cout << "using port " << serialPortName << " at " << serialBaudRate << " baud" << endl;
-
-    //options are: B115200, B230400, B9600, B19200, B38400, B57600, B1200, B2400, B4800
-    switch(serialBaudRate){
-        case 115200:
-            serialBaudRate = B115200;
-            break;
-        case 9600:
-            serialBaudRate = B9600;
-            break;
-    }
-
-    openSerial(serialPortName, serialBaudRate);
 }
 
 int main(int argc, char **argv){
@@ -120,12 +136,35 @@ int main(int argc, char **argv){
 
     signal(SIGINT, signalHandler);
 
-    setup();
+    cout << "using port " << serialPortName << " at " << serialBaudRate << " baud" << endl;
+
+    //options are: B115200, B230400, B9600, B19200, B38400, B57600, B1200, B2400, B4800
+    switch(serialBaudRate){
+        case 115200:
+            serialBaudRate = B115200;
+            break;
+        case 9600:
+            serialBaudRate = B9600;
+            break;
+    }
+
+    openSerial(serialPortName, serialBaudRate);
 
     thread writeThread(readAndProcessData);
     writeThread.detach();
 
+    //start checking 5 sec from now
+    LastMsg.setTime(now() + std::chrono::milliseconds(STARTUP_THRESH));
+    thread inputThread(checkInput);
+    inputThread.detach();
+
+    //check if messages are being received
     while(1){
-        checkInput();
+        //cout << diff(now(), LastMsg.getTime()) << endl;
+        if(diff(now(), LastMsg.getTime()) > HEARTBEAT_THRESH){
+            cout << "Not receiving data, exiting" << endl;
+            exit(1);
+        }
+        std::this_thread::sleep_for(200ms);
     }
 }
