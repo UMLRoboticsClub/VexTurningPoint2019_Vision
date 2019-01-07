@@ -9,7 +9,7 @@ TARGET   = vision
 SRCFILES = main.cpp crc.cpp
 OBJECTS  = $(patsubst %.cpp, %.o, $(SRCFILES))
 
-ifeq ($(shell uname -p),aarch64)
+ifeq ($(shell uname -p),unknown)
    INCLUDE  = -I/usr/local/include/opencv4
    CXXFLAGS += -march=armv8-a+crc+fp+simd -mtune=cortex-a53
    #-fexpensive-optimizations -fprefetch-loop-arrays

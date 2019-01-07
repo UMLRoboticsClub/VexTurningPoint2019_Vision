@@ -194,7 +194,6 @@ int main(int argc, char **argv){
 
     cap.set(CAP_PROP_FPS, 30); //not really needed
 
-    cout << "Hit 'q' to exit..." << endl;
     while(waitKey(1) != 'q'){
         cap >> frame;
 #endif
@@ -215,6 +214,7 @@ int main(int argc, char **argv){
 #endif
 
     cout << "Exiting vision" << endl;
+    cap.release();
 }
 
 void sendTargets(){
@@ -518,7 +518,7 @@ void drawOverlay(const Mat &_orig, const vector<Point> &targets){
 
     imshow("overlay", orig);
     //TODO: remove this later
-    moveWindow("overlay", 1280, 580);
+    //moveWindow("overlay", 1280, 580);
 }
 
 void processF(const Mat &_frame){
